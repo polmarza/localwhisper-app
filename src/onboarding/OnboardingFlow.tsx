@@ -62,7 +62,19 @@ export function OnboardingFlow({ onComplete }: Props) {
         setTier(recommendTier(hw));
       })
       .catch((e) => {
+        // If detection fails (e.g. on a platform we haven't covered yet),
+        // fall back to a conservative profile so the onboarding still
+        // progresses. "medium" is the safe default for ~8 GB non-Apple
+        // Silicon machines.
         console.error("detect_hardware failed", e);
+        const fallback: Hardware = {
+          total_ram_gb: 8,
+          arch: "unknown",
+          is_apple_silicon: false,
+          cpu_brand: "",
+        };
+        setHardware(fallback);
+        setTier(recommendTier(fallback));
       });
   }, []);
 
@@ -117,7 +129,7 @@ export function OnboardingFlow({ onComplete }: Props) {
 
       <div className="onb-body">
         {step === "welcome" && (
-          <Welcome hardware={hardware} onContinue={() => setStep("theme")} />
+          <Welcome onContinue={() => setStep("theme")} />
         )}
 
         {step === "theme" && (
