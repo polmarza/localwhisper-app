@@ -115,3 +115,70 @@ jobs:
           # "latest" to anyone browsing the releases page.
           prerelease: ${{ contains(github.ref_name, '-preview') || contains(github.ref_name, '-beta') }}
           args: ${{ matrix.args }}
+
+  # ----------------------------------------------------------------------
+  # Mirror the GitHub Release artifacts to Cloudflare R2 so the landing
+  # page can serve fast, branded download URLs (downloads.localwhisper.app)
+  # instead of relying on GitHub's CDN. We always upload to a versioned
+  # folder (/vX.Y.Z/); stable releases also overwrite /latest/ with stable,
+  # unversioned filenames so the landing's download buttons never go stale.
+  # ----------------------------------------------------------------------
+  upload-to-r2:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-assets
+          gh release download "${{ github.ref_name }}" \
+            --dir release-assets \
+            -R ${{ github.repository }}
+          ls -la release-assets/
+
+      - name: Upload versioned folder to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          aws s3 cp release-assets/ \
+            "s3://${R2_BUCKET}/${TAG}/" \
+            --recursive \
+            --endpoint-url "$R2_ENDPOINT"
+
+      # Stable channel mirror: only run for tags WITHOUT -preview/-beta suffix.
+      # We rename to stable filenames so links like
+      # releases.localwhisper.app/latest/Local-Whisper-arm64.dmg never change.
+      - name: Update /latest/ with stable filenames (stable releases only)
+        if: ${{ !contains(github.ref_name, '-preview') && !contains(github.ref_name, '-beta') }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          mkdir latest
+          # macOS
+          cp release-assets/*aarch64.dmg     latest/Local-Whisper-arm64.dmg     2>/dev/null || true
+          cp release-assets/*x64.dmg         latest/Local-Whisper-intel.dmg     2>/dev/null || true
+          cp release-assets/*aarch64.app.tar.gz latest/Local-Whisper-arm64.app.tar.gz 2>/dev/null || true
+          cp release-assets/*x64.app.tar.gz  latest/Local-Whisper-intel.app.tar.gz  2>/dev/null || true
+          # Windows
+          cp release-assets/*x64-setup.exe   latest/Local-Whisper-Setup.exe     2>/dev/null || true
+          cp release-assets/*x64_en-US.msi   latest/Local-Whisper.msi           2>/dev/null || true
+          # Linux
+          cp release-assets/*amd64.AppImage  latest/Local-Whisper.AppImage      2>/dev/null || true
+          cp release-assets/*amd64.deb       latest/Local-Whisper.deb           2>/dev/null || true
+          cp release-assets/*x86_64.rpm      latest/Local-Whisper.rpm           2>/dev/null || true
+
+          ls -la latest/
+          aws s3 sync latest/ \
+            "s3://${R2_BUCKET}/latest/" \
+            --delete \
+            --endpoint-url "$R2_ENDPOINT"
