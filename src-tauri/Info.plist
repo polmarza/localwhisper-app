@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Extra Info.plist entries merged into the bundle by tauri-bundler.
+
+  These usage descriptions are mandatory on macOS — without them the OS
+  silently denies permission requests in release builds (dev mode is more
+  permissive, which is why the bug only surfaces after the first signed
+  build is installed). The strings shown here are what the user sees in
+  the system permission prompt.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Local Whisper necesita acceso al micrófono para grabar tu voz y transcribirla localmente en tu equipo.</string>
+
+  <key>NSAppleEventsUsageDescription</key>
+  <string>Local Whisper usa este permiso para pegar el texto transcrito en la app donde estés escribiendo.</string>
+
+  <key>NSSupportsAutomaticGraphicsSwitching</key>
+  <true/>
+</dict>
+</plist>

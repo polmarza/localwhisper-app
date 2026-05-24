@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS code signing entitlements for Local Whisper.
+
+  These grant the app's WebKit content process the capabilities it needs
+  for the recorder pipeline. Without them, the WebView's getUserMedia call
+  is silently blocked by the macOS sandbox (the user never sees a prompt
+  and the overlay pill flashes for a frame before the recorder gives up).
+
+  Notes:
+  - The microphone entitlement pairs with NSMicrophoneUsageDescription in
+    Info.plist — both are required: the description is what the user sees,
+    the entitlement is the actual technical permission.
+  - We disable the app sandbox because Tauri's IPC + global shortcut +
+    pasteText IOKit calls need access to subsystems that App Sandbox
+    blocks. App Sandbox is only required for Mac App Store distribution
+    (which we don't target — we distribute via our own DMG download).
+  - JIT + unsigned-executable-memory + allow-dyld-environment-variables
+    are needed by V8/JavaScriptCore inside WebKit.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+</dict>
+</plist>

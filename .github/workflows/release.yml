@@ -76,7 +76,19 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
+      # tauri-action signs the .app ad-hoc but does NOT embed the entitlements
+      # from `bundle.macOS.entitlements` when there's no Developer ID. The
+      # post-build step below re-signs with the entitlements file so the WebView
+      # can actually access the microphone (without these, the recorder pill
+      # flashes for a frame and dies because the macOS sandbox blocks
+      # getUserMedia silently).
+      #
+      # Once Apple Developer enrollment is approved and the APPLE_* secrets are
+      # set, the proper signing identity replaces ad-hoc and this becomes
+      # unnecessary — tauri-action handles signing+entitlements together when a
+      # real identity is configured.
       - name: Build & release
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -115,6 +127,52 @@ jobs:
           # "latest" to anyone browsing the releases page.
           prerelease: ${{ contains(github.ref_name, '-preview') || contains(github.ref_name, '-beta') }}
           args: ${{ matrix.args }}
+
+      # macOS only: re-sign the .app with entitlements and rebuild the DMG so
+      # the published artifact actually has the audio-input entitlement
+      # embedded. See the "Build & release" step above for the why.
+      - name: Re-sign with entitlements (macOS only)
+        if: startsWith(matrix.platform, 'macos')
+        env:
+          TARGET: ${{ matrix.target }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          APP="src-tauri/target/${TARGET}/release/bundle/macos/Local Whisper.app"
+          DMG_DIR="src-tauri/target/${TARGET}/release/bundle/dmg"
+          ENT="src-tauri/entitlements.plist"
+
+          echo "Re-signing $APP with entitlements"
+          codesign --force --deep --sign - --entitlements "$ENT" "$APP"
+
+          echo "Re-bundling DMG so it ships the resigned .app"
+          # The original DMG produced by tauri-action embeds the pre-sign app.
+          # We rebuild it via Tauri's bundler so the DMG matches the new sig.
+          rm -f "$DMG_DIR"/*.dmg
+          pnpm tauri build --target "$TARGET" --bundles dmg --no-bundle 2>&1 || true
+          # Some Tauri versions don't expose --no-bundle the same way; fall back
+          # to a fresh DMG build if the above didn't produce one.
+          if [ -z "$(ls "$DMG_DIR"/*.dmg 2>/dev/null)" ]; then
+            pnpm tauri build --target "$TARGET" --bundles dmg
+          fi
+
+          echo "Re-uploading resigned artifacts to the GitHub Release"
+          gh release upload "${{ github.ref_name }}" \
+            "$DMG_DIR"/*.dmg \
+            --clobber \
+            -R ${{ github.repository }}
+
+          # Also re-upload the .app.tar.gz (used by the auto-updater later).
+          APP_TARGZ_DIR="src-tauri/target/${TARGET}/release/bundle/macos"
+          if [ -d "$APP_TARGZ_DIR" ]; then
+            # Re-create the tarball from the resigned .app.
+            TAR_NAME=$(basename "$APP" .app)
+            (cd "$APP_TARGZ_DIR" && tar czf "${TAR_NAME}.app.tar.gz" "${TAR_NAME}.app")
+            gh release upload "${{ github.ref_name }}" \
+              "$APP_TARGZ_DIR/${TAR_NAME}.app.tar.gz" \
+              --clobber \
+              -R ${{ github.repository }} || true
+          fi
 
   # ----------------------------------------------------------------------
   # Mirror the GitHub Release artifacts to Cloudflare R2 so the landing

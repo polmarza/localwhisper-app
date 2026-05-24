@@ -335,28 +335,46 @@ async fn transcribe_audio(
 }
 
 /// Removes the literal markers whisper.cpp emits when it perceives silence,
-/// music, or breathing. These are model artifacts, not real spoken words.
+/// music, breathing, applause, etc. These are model artifacts, not real
+/// spoken words.
+///
+/// Approach: strip **any** bracketed annotation `[...]` (case-insensitive,
+/// any language) because whisper.cpp never emits brackets for real speech —
+/// when a user dictates "abre corchete hola cierra corchete" the model
+/// writes it out as words, never the literal `[` character. So removing all
+/// bracketed runs is safe and covers every variant (`[SILENCIO]`, `[Música]`,
+/// `[ Silence ]`, `[BLANK_AUDIO]`, `[Risas]`, etc.) without needing an
+/// exhaustive list.
+///
+/// For parentheses we're more conservative — users may genuinely dictate
+/// content like "(opcional)" — so we only strip a small known list of
+/// model artifacts that sometimes leak as `(Música)` instead of `[Música]`.
 fn strip_whisper_markers(text: &str) -> String {
-    const MARKERS: &[&str] = &[
-        "[AUDIO_EN_BLANCO]",
-        "[BLANK_AUDIO]",
-        "[Música]",
-        "[Music]",
-        "[música]",
-        "[ Música ]",
-        "(Música)",
-        "(música)",
-        "[Silencio]",
-        "[silence]",
-        "[Risas]",
-        "[Applause]",
-        "[Aplausos]",
-        "[Inaudible]",
+    // Pass 1: strip every [...] block. We handle nesting too (rare but cheap).
+    let mut s = String::with_capacity(text.len());
+    let mut depth = 0i32;
+    for ch in text.chars() {
+        match ch {
+            '[' => depth += 1,
+            ']' if depth > 0 => depth -= 1,
+            _ if depth == 0 => s.push(ch),
+            _ => { /* inside [...], drop */ }
+        }
+    }
+
+    // Pass 2: known (...) artifacts.
+    const PAREN_MARKERS: &[&str] = &[
+        "(Música)", "(música)", "(Music)", "(music)",
+        "(Silencio)", "(silencio)", "(Silence)", "(silence)",
+        "(Risas)", "(risas)", "(Laughter)",
+        "(Aplausos)", "(aplausos)", "(Applause)",
+        "(Inaudible)", "(inaudible)",
     ];
-    let mut s = text.to_string();
-    for m in MARKERS {
+    for m in PAREN_MARKERS {
         s = s.replace(m, "");
     }
+
+    // Pass 3: collapse any whitespace that ended up doubled by the removals.
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -487,12 +505,14 @@ async fn paste_text(text: String) -> Result<PasteOutcome, String> {
     #[cfg(target_os = "macos")]
     set_clipboard_text(&text);
 
-    // On macOS the synthesized ⌘V keystroke is blocked unless this process has
-    // Accessibility permission. Trigger the system prompt the first time (and
-    // every subsequent time it's missing) so the user can grant it from the
-    // standard dialog.
+    // On macOS the synthesized ⌘V keystroke is blocked unless this process
+    // has Accessibility permission. We check silently here — the startup
+    // hook is responsible for showing the system prompt on first launch.
+    // Showing it on every paste would re-trigger the dialog after every
+    // dictation because ad-hoc resigning changes the cdhash and macOS
+    // treats it as a new identity for TCC.
     #[cfg(target_os = "macos")]
-    let trusted = ensure_accessibility_trust();
+    let trusted = is_accessibility_trusted();
     #[cfg(not(target_os = "macos"))]
     let trusted = true;
 
@@ -594,11 +614,34 @@ fn synthesize_cmd_v() {
     }
 }
 
-// `AXIsProcessTrustedWithOptions(kAXTrustedCheckOptionPrompt: true)` — checks
-// whether the current process has Accessibility permission, popping the
-// system prompt (and registering the app in System Settings) when it doesn't.
+// Two flavors of the trust check:
+//
+// - `is_accessibility_trusted()` queries the current state **without** popping
+//   the system prompt. Use this on the hot path (paste_text) — we don't want
+//   the user to see the Accessibility dialog every time they stop a
+//   recording.
+//
+// - `request_accessibility_trust()` shows the prompt and registers the app in
+//   System Settings if it isn't already. Call this ONCE at startup so the
+//   user is offered the permission the first time, and never bothered again
+//   if they grant it.
+//
+// (Background: when the .app is re-signed locally with `codesign --sign -`,
+// the cdhash changes and macOS treats it as a "new" identity for TCC
+// purposes. The user might appear in System Settings with the toggle on but
+// the OS still answers "not trusted" because that toggle is bound to the
+// previous signature. Releasing with a stable Developer ID signature fixes
+// this; until then we just avoid showing the prompt on every paste.)
 #[cfg(target_os = "macos")]
-fn ensure_accessibility_trust() -> bool {
+fn is_accessibility_trusted() -> bool {
+    extern "C" {
+        fn AXIsProcessTrusted() -> bool;
+    }
+    unsafe { AXIsProcessTrusted() }
+}
+
+#[cfg(target_os = "macos")]
+fn request_accessibility_trust() -> bool {
     use cocoa::base::{id, nil, YES};
     use cocoa::foundation::{NSDictionary, NSString};
     use objc::{class, msg_send, sel, sel_impl};
@@ -682,9 +725,11 @@ pub fn run() {
             // Pop the macOS Accessibility prompt on first launch so the user
             // can grant the permission needed for the paste step. After they
             // approve, Local Whisper appears in Privacy & Security → Accessibility.
+            // Only the prompting variant runs here; the hot path in paste_text
+            // uses the silent check to avoid bothering the user repeatedly.
             #[cfg(target_os = "macos")]
             {
-                let trusted = ensure_accessibility_trust();
+                let trusted = request_accessibility_trust();
                 eprintln!("[startup] Accessibility trusted = {trusted}");
             }
             Ok(())
