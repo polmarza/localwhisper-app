@@ -106,22 +106,21 @@ Para test con tarjeta de Stripe: `4242 4242 4242 4242`, expiry `12/30`, CVC `123
 
 ## Atajo de teclado global
 
-Filosofía: usar el modificador que está **en la misma posición física** en los teclados de cada SO — la segunda tecla a la izquierda de Espacio:
+Distinto por plataforma para evitar colisiones con atajos del SO:
 
-- **macOS:** Option (⌥)
-- **Windows:** Win
-- **Linux:** Super (la misma tecla física que Win, otro nombre)
+| SO | Atajo | Razón |
+|---|---|---|
+| macOS | `⌥ + Espacio` (Option+Space) | Sin conflicto con el sistema |
+| Windows | `Ctrl + Shift + Espacio` | `Win+Space` cambia distribución de teclado, `Alt+Space` abre el menú de la ventana |
+| Linux | `Ctrl + Shift + Espacio` | `Super+Space` abre el lanzador en GNOME/KDE |
 
-La razón es ergonómica: la combinación se siente "igual" para el usuario sin tener que aprender un atajo nuevo según el SO.
+**Sincronización:**
+- Registro en Rust: `src-tauri/src/lib.rs` setup, con `#[cfg(target_os = "macos")]`
+- Label visual: `src/state/shortcuts.ts` → `getRecordingShortcut()`
+- Si cambias uno, cambia el otro (si no, el label muestra un atajo que no funciona)
+- Usado para mostrar las teclas en: `TutorialModal`, `Ready`, `Help`
 
-**Estado actual:**
-- Rust registra `Alt+Space` (`src-tauri/src/lib.rs`, setup). En macOS funciona porque Alt = Option. En Windows/Linux **el binding hay que cambiarlo** a `Super+Space` (o equivalente) antes del build correspondiente.
-- El label visual ya está correcto vía `src/state/shortcuts.ts` → `getRecordingShortcut()`. Mac muestra `⌥`, Windows muestra `Win`, Linux muestra `Super`. Usado en `TutorialModal`, `Ready`, `Help`.
-
-**⚠️ Conflicto conocido en Windows:** `Win+Space` es por defecto el cambio de distribución de teclado en Windows. Decidir antes de lanzar Windows si:
-1. Asumir el override (a muchos usuarios no les molesta porque rara vez cambian distribución)
-2. Cambiar el atajo Windows a algo como `Ctrl+Shift+Space`
-3. Permitir personalización desde Ajustes (la mejor opción a largo plazo)
+**Próximo paso pendiente:** hacer el atajo personalizable desde Ajustes → Atajos (sección ya existe vacía). UI tipo "graba la combinación" como hacen Raycast, CleanShot, etc.
 
 ## Sistema de versiones y canales (pendiente de implementar)
 

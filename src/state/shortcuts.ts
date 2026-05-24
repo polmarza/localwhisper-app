@@ -3,20 +3,24 @@ import { getPlatformName } from "./hardware";
 /**
  * Visual representation of the global recording shortcut.
  *
- * We use the modifier key that sits in the same physical position across
- * platforms — second key to the left of Space:
- *   - macOS: Option (⌥)
- *   - Windows: Win
- *   - Linux: Super (same physical key as Windows' Win key)
+ * We use different combos per platform because the OS-reserved shortcuts
+ * differ — what's free on macOS clashes with system functions on
+ * Windows/Linux:
  *
- * The Rust side currently registers `Alt+Space` (works fine on macOS where
- * Alt = Option). When we ship Windows/Linux builds we'll switch the binding
- * to `Super+Space` and update this helper accordingly. The labels below
- * already show the intended final binding.
+ *   - macOS:   ⌥ + Space     (Option+Space, no system conflict)
+ *   - Windows: Ctrl+Shift+Space   (Win+Space switches keyboard layout,
+ *                                  Alt+Space opens the window control menu)
+ *   - Linux:   Ctrl+Shift+Space   (Super+Space typically opens the app
+ *                                  launcher in GNOME/KDE)
+ *
+ * The Rust side picks the matching binding at compile time via cfg flags.
+ * If you change one side, keep the other in sync (or the user sees a
+ * shortcut here that doesn't actually fire). Eventually this becomes
+ * user-configurable from Ajustes → Atajos.
  */
 
 export type ShortcutKey = {
-  /** Short display label, e.g. "⌥", "Win", "Espacio". */
+  /** Short display label, e.g. "⌥", "Ctrl", "Espacio". */
   label: string;
   /** Full name for screen readers or longer text. */
   name: string;
@@ -32,11 +36,12 @@ export function getRecordingShortcut(): Shortcut {
   if (platform === "Mac") {
     return [{ label: "⌥", name: "Option" }, space];
   }
-  if (platform === "Windows") {
-    return [{ label: "Win", name: "Windows" }, space];
-  }
-  // Linux: the same physical key is conventionally called "Super".
-  return [{ label: "Super", name: "Super" }, space];
+  // Windows + Linux share the same combo for now.
+  return [
+    { label: "Ctrl", name: "Control" },
+    { label: "Shift", name: "Shift" },
+    space,
+  ];
 }
 
 /** A simple "⌥ + Espacio" / "Alt + Espacio" string for inline text. */

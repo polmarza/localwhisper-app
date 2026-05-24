@@ -710,7 +710,19 @@ pub fn run() {
         )
         .setup(|app| {
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
-            app.handle().global_shortcut().register("Alt+Space")?;
+            // Global recording shortcut, chosen per-platform to avoid clashing
+            // with OS-reserved combos:
+            //   - macOS:   Alt+Space → Option(⌥)+Space (no system conflict)
+            //   - Windows: Ctrl+Shift+Space (Win+Space switches keyboard layout;
+            //              Alt+Space opens the window control menu)
+            //   - Linux:   Ctrl+Shift+Space (Super+Space usually opens the app
+            //              launcher in GNOME/KDE)
+            // The user-visible label is kept in sync via `src/state/shortcuts.ts`.
+            #[cfg(target_os = "macos")]
+            let shortcut = "Alt+Space";
+            #[cfg(not(target_os = "macos"))]
+            let shortcut = "Ctrl+Shift+Space";
+            app.handle().global_shortcut().register(shortcut)?;
 
             // Load (or create on first boot) the license state from
             // AppData/license.json so commands can read/write it.
