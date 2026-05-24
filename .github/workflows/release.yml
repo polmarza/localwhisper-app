@@ -138,41 +138,51 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          APP="src-tauri/target/${TARGET}/release/bundle/macos/Local Whisper.app"
+          APP_DIR="src-tauri/target/${TARGET}/release/bundle/macos"
           DMG_DIR="src-tauri/target/${TARGET}/release/bundle/dmg"
+          APP="$APP_DIR/Local Whisper.app"
           ENT="src-tauri/entitlements.plist"
 
-          echo "Re-signing $APP with entitlements"
+          # 1. Re-sign the .app in place with the entitlements that Tauri's
+          #    bundler skipped (it skips them under ad-hoc identity).
           codesign --force --deep --sign - --entitlements "$ENT" "$APP"
+          codesign --verify --deep --strict "$APP"
 
-          echo "Re-bundling DMG so it ships the resigned .app"
-          # The original DMG produced by tauri-action embeds the pre-sign app.
-          # We rebuild it via Tauri's bundler so the DMG matches the new sig.
-          rm -f "$DMG_DIR"/*.dmg
-          pnpm tauri build --target "$TARGET" --bundles dmg --no-bundle 2>&1 || true
-          # Some Tauri versions don't expose --no-bundle the same way; fall back
-          # to a fresh DMG build if the above didn't produce one.
-          if [ -z "$(ls "$DMG_DIR"/*.dmg 2>/dev/null)" ]; then
-            pnpm tauri build --target "$TARGET" --bundles dmg
+          # 2. Rebuild the DMG from the resigned .app. The DMG that
+          #    tauri-action produced contains the pre-resign signature, so we
+          #    discard it and create a fresh one with hdiutil.
+          OLD_DMG=$(ls "$DMG_DIR"/*.dmg 2>/dev/null | head -1)
+          if [ -n "$OLD_DMG" ]; then
+            DMG_NAME=$(basename "$OLD_DMG")
+            rm -f "$OLD_DMG"
+            STAGING="$(mktemp -d)/staging"
+            mkdir -p "$STAGING"
+            cp -R "$APP" "$STAGING/"
+            ln -sf /Applications "$STAGING/Applications"
+            hdiutil create \
+              -volname "Local Whisper" \
+              -srcfolder "$STAGING" \
+              -ov \
+              -format UDZO \
+              "$DMG_DIR/$DMG_NAME"
+            rm -rf "$STAGING"
           fi
 
-          echo "Re-uploading resigned artifacts to the GitHub Release"
+          # 3. Rebuild the .app.tar.gz from the resigned .app (needed by the
+          #    auto-updater once that's wired in).
+          OLD_TAR=$(ls "$APP_DIR"/*.app.tar.gz 2>/dev/null | head -1)
+          if [ -n "$OLD_TAR" ]; then
+            TAR_NAME=$(basename "$OLD_TAR")
+            (cd "$APP_DIR" && rm -f "$TAR_NAME" && tar czf "$TAR_NAME" "Local Whisper.app")
+          fi
+
+          # 4. Overwrite the artifacts on the GitHub Release with the
+          #    resigned versions.
           gh release upload "${{ github.ref_name }}" \
             "$DMG_DIR"/*.dmg \
+            "$APP_DIR"/*.app.tar.gz \
             --clobber \
             -R ${{ github.repository }}
-
-          # Also re-upload the .app.tar.gz (used by the auto-updater later).
-          APP_TARGZ_DIR="src-tauri/target/${TARGET}/release/bundle/macos"
-          if [ -d "$APP_TARGZ_DIR" ]; then
-            # Re-create the tarball from the resigned .app.
-            TAR_NAME=$(basename "$APP" .app)
-            (cd "$APP_TARGZ_DIR" && tar czf "${TAR_NAME}.app.tar.gz" "${TAR_NAME}.app")
-            gh release upload "${{ github.ref_name }}" \
-              "$APP_TARGZ_DIR/${TAR_NAME}.app.tar.gz" \
-              --clobber \
-              -R ${{ github.repository }} || true
-          fi
 
   # ----------------------------------------------------------------------
   # Mirror the GitHub Release artifacts to Cloudflare R2 so the landing
