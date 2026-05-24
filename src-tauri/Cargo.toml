@@ -27,10 +27,16 @@ futures-util = "0.3"
 tokio = { version = "1", features = ["fs", "io-util", "sync", "time"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-# whisper.cpp bindings — Metal-accelerated on Apple Silicon. The first cargo
-# build compiles whisper.cpp (~1-2 min); subsequent builds reuse the cache.
-whisper-rs = { version = "0.13", features = ["metal"] }
+
+# whisper.cpp bindings — split per platform because the `metal` feature drags
+# in macOS-only frameworks (Foundation) that don't exist on Linux/Windows.
+# Linux & Windows fall back to CPU for now; we'll add CUDA/Vulkan in a future
+# revision when there's user demand.
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"
 objc = "0.2"
+whisper-rs = { version = "0.13", features = ["metal"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+whisper-rs = "0.13"
