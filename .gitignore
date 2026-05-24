@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+pnpm-debug.log*
+
+# Build outputs
+dist
+src-tauri/target
+src-tauri/gen
+
+# Editor / OS metadata
+.DS_Store
+.idea
+.vscode
+*.swp
+*.swo
+
+# Local-only design and notes
+.design
+
+# Claude Code session data
+.claude
+*.claude-context
+
+# Env files (none expected, but safety net)
+.env
+.env.local
+.env.*.local
+
+# macOS signing (private keys never committed)
+*.p12
+*.cer
+*.mobileprovision
+
+# Tauri auto-updater signing
+*.key
+*.key.pub
+
+# Locally generated artifacts that don't need to live in the repo
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.app
