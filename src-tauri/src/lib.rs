@@ -394,8 +394,7 @@ async fn open_url(url: String) -> Result<(), String> {
 
 // ---------------------------------------------------------------------------
 // Hardware detection — used by the onboarding to suggest a model tier.
-// macOS only. We shell out to sysctl + uname instead of pulling sysinfo as a
-// dependency.
+// Cross-platform via the `sysinfo` crate (macOS / Windows / Linux).
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize)]
@@ -406,35 +405,32 @@ pub struct Hardware {
     cpu_brand: String,
 }
 
-fn sysctl(key: &str) -> Option<String> {
-    let out = std::process::Command::new("sysctl")
-        .args(["-n", key])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let s = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    if s.is_empty() { None } else { Some(s) }
-}
-
 #[tauri::command]
 fn detect_hardware() -> Result<Hardware, String> {
-    let total_ram_gb = sysctl("hw.memsize")
-        .and_then(|s| s.parse::<u64>().ok())
-        .map(|bytes| (bytes as f64) / (1024.0 * 1024.0 * 1024.0))
-        .ok_or_else(|| "No pude leer hw.memsize".to_string())?;
+    use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
-    let arch = std::process::Command::new("uname")
-        .arg("-m")
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown".into());
+    let mut sys = System::new_with_specifics(
+        RefreshKind::nothing()
+            .with_memory(MemoryRefreshKind::nothing().with_ram())
+            .with_cpu(CpuRefreshKind::nothing()),
+    );
+    sys.refresh_memory();
 
-    let cpu_brand = sysctl("machdep.cpu.brand_string").unwrap_or_default();
-    let is_apple_silicon = arch == "arm64";
+    let total_ram_gb = (sys.total_memory() as f64) / (1024.0 * 1024.0 * 1024.0);
+
+    // std::env::consts::ARCH returns "aarch64" on Apple Silicon; we keep the
+    // historical "arm64" label (what `uname -m` used to produce) so any
+    // downstream comparisons stay stable.
+    let arch_raw = std::env::consts::ARCH.to_string();
+    let arch = if arch_raw == "aarch64" { "arm64".to_string() } else { arch_raw };
+
+    let is_apple_silicon = cfg!(target_os = "macos") && arch == "arm64";
+
+    let cpu_brand = sys
+        .cpus()
+        .first()
+        .map(|c| c.brand().trim().to_string())
+        .unwrap_or_default();
 
     Ok(Hardware {
         total_ram_gb,

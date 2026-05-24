@@ -1,11 +1,8 @@
-import type { Hardware } from "../state/hardware";
-
 type Props = {
-  hardware: Hardware | null;
   onContinue: () => void;
 };
 
-export function Welcome({ hardware, onContinue }: Props) {
+export function Welcome({ onContinue }: Props) {
   return (
     <div
       className="onb-step"
@@ -28,7 +25,6 @@ export function Welcome({ hardware, onContinue }: Props) {
         type="button"
         className="onb-btn primary"
         onClick={onContinue}
-        disabled={!hardware}
         style={{ marginTop: 8 }}
       >
         Empezar
