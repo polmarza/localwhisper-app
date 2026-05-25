@@ -157,3 +157,20 @@ Los IDs de Tally están en constantes al inicio de `src/screens/Help.tsx`. Si ca
 - Fuente: `src-tauri/icons/local-whisper.png` (800×800, diseño del usuario)
 - Generados con script Node + sharp (requiere RGBA, no RGB)
 - Si se regeneran: `node scripts/gen-icons.mjs`
+
+## Próximas mejoras (pendiente de implementar)
+
+### Modal de petición de reseña
+- **Trigger:** 7 días después de `license.activated_at` (no de la primera ejecución — solo a usuarios que han pagado).
+- **Una sola vez por instalación.** Persistir flag en `AppData/license.json` (`review_prompt_shown_at`) para que no vuelva a aparecer aunque el usuario reinstale.
+- **Modal con dos opciones:** "Dejar reseña" (abre Tally en navegador) o "Quizá más tarde" (re-pregunta en 14 días). Sin "no preguntar nunca" — si el usuario es de los que no quieren ser molestados, el "más tarde" se irá saltando solo.
+- **Formulario Tally** con estos campos:
+  - Obligatorios: rating 1–5 estrellas, texto libre, nombre.
+  - Opcionales: sector/rol, link a LinkedIn/web.
+- **Uso:** publicar las reseñas en la landing como social proof. Filtrar a mano cuáles van.
+
+### Contador de licencias vendidas en landing
+- **No usar telemetría desde la app** — chocaría con el mensaje "100% en tu equipo".
+- Fuente: API de Lemon Squeezy (`/v1/orders` con el `store_id`). Cron job o build-time fetch que escriba el número a un JSON estático que sirva la landing.
+- Mostrar el contador solo a partir de ~50 ventas (antes queda flojo).
+- Adicional: Vercel Analytics en la landing para clicks en el botón de descarga (métrica interna, no se muestra al público).
