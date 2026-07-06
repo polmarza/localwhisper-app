@@ -73,12 +73,20 @@
 /* Arena Light — warm cream with terracotta accent. */
 body[data-palette="arena-light"],
 body[data-palette="pizarra-light"],
-body[data-palette="bosque-light"] {
+body[data-palette="bosque-light"],
+body[data-palette="coral-light"],
+body[data-palette="medianoche-light"],
+body[data-palette="oceano-light"],
+body[data-palette="mono-light"] {
   --dot-rest: rgba(42, 38, 32, 0.18);
 }
 body[data-palette="arena-dark"],
 body[data-palette="pizarra-dark"],
-body[data-palette="bosque-dark"] {
+body[data-palette="bosque-dark"],
+body[data-palette="coral-dark"],
+body[data-palette="medianoche-dark"],
+body[data-palette="oceano-dark"],
+body[data-palette="mono-dark"] {
   --dot-rest: rgba(255, 255, 255, 0.25);
 }
 
@@ -213,6 +221,182 @@ body[data-palette="bosque-dark"] {
   --hero-glow: rgba(79, 125, 80, 0.45);
 }
 
+/* Coral Light — warm blush cream with coral accent. */
+body[data-palette="coral-light"] {
+  --bg: #fdf6f3;
+  --surface: #ffffff;
+  --sidebar: #f7e6df;
+  --sidebar-2: #efd6cc;
+  --ink: #2b211d;
+  --ink-2: #6b574f;
+  --ink-3: #a58c83;
+  --line: rgba(43, 33, 29, 0.09);
+  --line-2: rgba(43, 33, 29, 0.05);
+  --accent: #e0603c;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(224, 96, 60, 0.10);
+  --good: #4f7d50;
+  --warn: #c98a1e;
+  --danger: #b34a3a;
+  --hero-bg: #2a1a15;
+  --hero-ink: #fbeee8;
+  --hero-glow: rgba(224, 96, 60, 0.45);
+}
+
+/* Coral Dark — warm dark with a brighter coral accent. */
+body[data-palette="coral-dark"] {
+  --bg: #211a17;
+  --surface: #2c2320;
+  --sidebar: #271f1c;
+  --sidebar-2: #352a25;
+  --ink: #f2e9e4;
+  --ink-2: #b8a79f;
+  --ink-3: #85736b;
+  --line: rgba(245, 235, 230, 0.10);
+  --line-2: rgba(245, 235, 230, 0.05);
+  --accent: #e86f4c;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(232, 111, 76, 0.18);
+  --good: #82b08a;
+  --warn: #dba93e;
+  --danger: #d65a4a;
+  --hero-bg: #150f0d;
+  --hero-ink: #fbeee8;
+  --hero-glow: rgba(232, 111, 76, 0.45);
+}
+
+/* Medianoche Light — cool pale blue-grey with a vivid blue accent. */
+body[data-palette="medianoche-light"] {
+  --bg: #f2f4f8;
+  --surface: #ffffff;
+  --sidebar: #e3e8f1;
+  --sidebar-2: #d3dbe9;
+  --ink: #131722;
+  --ink-2: #4c5568;
+  --ink-3: #858ea3;
+  --line: rgba(19, 23, 34, 0.09);
+  --line-2: rgba(19, 23, 34, 0.05);
+  --accent: #2f6df0;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(47, 109, 240, 0.10);
+  --good: #4d7d6a;
+  --warn: #c98a1e;
+  --danger: #b34a3a;
+  --hero-bg: #10131c;
+  --hero-ink: #eaeef6;
+  --hero-glow: rgba(47, 109, 240, 0.38);
+}
+
+/* Medianoche Dark — deep navy near-black with a bright blue accent. */
+body[data-palette="medianoche-dark"] {
+  --bg: #0b0f1a;
+  --surface: #141a27;
+  --sidebar: #0f1320;
+  --sidebar-2: #1b2233;
+  --ink: #e6ebf5;
+  --ink-2: #97a1b8;
+  --ink-3: #667089;
+  --line: rgba(230, 235, 245, 0.10);
+  --line-2: rgba(230, 235, 245, 0.05);
+  --accent: #4f8bff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(79, 139, 255, 0.18);
+  --good: #7fb7a3;
+  --warn: #dba93e;
+  --danger: #d65a4a;
+  --hero-bg: #070a12;
+  --hero-ink: #e6ebf5;
+  --hero-glow: rgba(79, 139, 255, 0.42);
+}
+
+/* Océano Light — cool aqua white with a teal accent. */
+body[data-palette="oceano-light"] {
+  --bg: #f0f7f6;
+  --surface: #ffffff;
+  --sidebar: #dcecea;
+  --sidebar-2: #c8e0dd;
+  --ink: #10201e;
+  --ink-2: #4a5f5c;
+  --ink-3: #82938f;
+  --line: rgba(16, 32, 30, 0.09);
+  --line-2: rgba(16, 32, 30, 0.05);
+  --accent: #0d9488;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(13, 148, 136, 0.10);
+  --good: #4f7d50;
+  --warn: #c98a1e;
+  --danger: #b34a3a;
+  --hero-bg: #0c1f1d;
+  --hero-ink: #e6f2f0;
+  --hero-glow: rgba(13, 148, 136, 0.40);
+}
+
+/* Océano Dark — deep teal-black with a bright teal accent. */
+body[data-palette="oceano-dark"] {
+  --bg: #0e1817;
+  --surface: #162220;
+  --sidebar: #121d1b;
+  --sidebar-2: #1e2b29;
+  --ink: #e4efec;
+  --ink-2: #93a6a2;
+  --ink-3: #647672;
+  --line: rgba(228, 239, 236, 0.10);
+  --line-2: rgba(228, 239, 236, 0.05);
+  --accent: #2dd4bf;
+  --accent-ink: #06201c;
+  --accent-soft: rgba(45, 212, 191, 0.18);
+  --good: #7fb7a3;
+  --warn: #dba93e;
+  --danger: #d65a4a;
+  --hero-bg: #08110f;
+  --hero-ink: #e4efec;
+  --hero-glow: rgba(45, 212, 191, 0.40);
+}
+
+/* Blanco y negro Light — neutral greys with a near-black accent. */
+body[data-palette="mono-light"] {
+  --bg: #f6f6f6;
+  --surface: #ffffff;
+  --sidebar: #ececec;
+  --sidebar-2: #e0e0e0;
+  --ink: #1a1a1a;
+  --ink-2: #575757;
+  --ink-3: #8f8f8f;
+  --line: rgba(0, 0, 0, 0.10);
+  --line-2: rgba(0, 0, 0, 0.05);
+  --accent: #1f1f1f;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(0, 0, 0, 0.07);
+  --good: #4f7d50;
+  --warn: #c98a1e;
+  --danger: #b34a3a;
+  --hero-bg: #171717;
+  --hero-ink: #f0f0f0;
+  --hero-glow: rgba(130, 130, 130, 0.30);
+}
+
+/* Blanco y negro Dark — neutral dark greys with a near-white accent. */
+body[data-palette="mono-dark"] {
+  --bg: #131313;
+  --surface: #1d1d1d;
+  --sidebar: #181818;
+  --sidebar-2: #262626;
+  --ink: #ededed;
+  --ink-2: #a0a0a0;
+  --ink-3: #6e6e6e;
+  --line: rgba(255, 255, 255, 0.11);
+  --line-2: rgba(255, 255, 255, 0.05);
+  --accent: #e8e8e8;
+  --accent-ink: #161616;
+  --accent-soft: rgba(255, 255, 255, 0.13);
+  --good: #7fb7a3;
+  --warn: #dba93e;
+  --danger: #d65a4a;
+  --hero-bg: #0a0a0a;
+  --hero-ink: #ededed;
+  --hero-glow: rgba(200, 200, 200, 0.25);
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
@@ -230,6 +414,14 @@ body[data-palette="pizarra-light"] { background: #b9c0cf; }
 body[data-palette="pizarra-dark"]  { background: #0a0c10; }
 body[data-palette="bosque-light"]  { background: #c4ccb3; }
 body[data-palette="bosque-dark"]   { background: #0c100c; }
+body[data-palette="coral-light"]   { background: #e6cabf; }
+body[data-palette="coral-dark"]    { background: #17100d; }
+body[data-palette="medianoche-light"] { background: #c3cee2; }
+body[data-palette="medianoche-dark"]  { background: #060911; }
+body[data-palette="oceano-light"]  { background: #bfd8d4; }
+body[data-palette="oceano-dark"]   { background: #071110; }
+body[data-palette="mono-light"]    { background: #d0d0d0; }
+body[data-palette="mono-dark"]     { background: #0d0d0d; }
 
 button, input, textarea, select {
   font-family: inherit;

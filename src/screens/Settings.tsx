@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  IconAa,
   IconArrowDn,
   IconCheck,
   IconCog,
@@ -54,6 +55,7 @@ const LANGUAGES: Array<{ code: string; label: string }> = [
 
 const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
   { id: "general", label: "General", icon: <IconCog size={15} /> },
+  { id: "personalizacion", label: "Personalización", icon: <IconAa size={15} /> },
   { id: "audio", label: "Audio y micrófono", icon: <IconHeadset size={15} /> },
   { id: "model", label: "Modelo local", icon: <IconShield size={15} /> },
   { id: "languages", label: "Idiomas", icon: <IconGlobe size={15} /> },
@@ -64,6 +66,7 @@ const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: React
 
 export type SettingsSection =
   | "general"
+  | "personalizacion"
   | "audio"
   | "model"
   | "languages"
@@ -484,6 +487,99 @@ export function SettingsScreen({
               >
                 <Toggle on={autopaste} onChange={persistAutopaste} />
               </Row>
+            </Card>
+          )}
+
+          {section === "personalizacion" && (
+            <Card padding={0}>
+              <SectionHead title="Personalización" />
+              <Row
+                label="Modo"
+                hint="Alterna entre paleta clara y oscura."
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    gap: 4,
+                    padding: 4,
+                    background: "var(--sidebar-2)",
+                    borderRadius: 8,
+                  }}
+                >
+                  {(["light", "dark"] as ThemeMode[]).map((m) => {
+                    const active = mode === m;
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => onModeChange?.(m)}
+                        style={{
+                          height: 30,
+                          padding: "0 16px",
+                          border: 0,
+                          background: active ? "var(--surface)" : "transparent",
+                          color: active ? "var(--ink)" : "var(--ink-3)",
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+                        }}
+                      >
+                        {m === "light" ? "Claro" : "Oscuro"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Row>
+              <Row
+                label="Tamaño del texto"
+                hint="Aumenta o reduce el tamaño de toda la interfaz."
+              >
+                <div style={{ display: "flex", gap: 6 }}>
+                  {TEXT_SCALES.map((s) => {
+                    const active = Math.abs(textScale - s.value) < 0.01;
+                    return (
+                      <button
+                        key={s.value}
+                        onClick={() => onTextScaleChange?.(s.value)}
+                        title={s.label}
+                        style={{
+                          display: "inline-flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 2,
+                          padding: "0 14px",
+                          height: 52,
+                          borderRadius: 7,
+                          border: `1px solid ${
+                            active ? "var(--accent)" : "var(--line)"
+                          }`,
+                          background: active
+                            ? "var(--accent)"
+                            : "var(--surface)",
+                          color: active
+                            ? "var(--accent-ink)"
+                            : "var(--ink-2)",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: Math.round(11 + (s.value - 0.9) * 14),
+                            lineHeight: 1,
+                          }}
+                        >
+                          Aa
+                        </span>
+                        <span style={{ fontSize: 10.5, opacity: 0.8 }}>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Row>
               <Row
                 label="Tema"
                 hint="Cambia la paleta de colores de la aplicación. El cambio se aplica al instante."
@@ -576,93 +672,6 @@ export function SettingsScreen({
                         >
                           {t.label}
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Row>
-              <Row
-                label="Modo"
-                hint="Alterna entre paleta clara y oscura."
-              >
-                <div
-                  style={{
-                    display: "inline-flex",
-                    gap: 4,
-                    padding: 4,
-                    background: "var(--sidebar-2)",
-                    borderRadius: 8,
-                  }}
-                >
-                  {(["light", "dark"] as ThemeMode[]).map((m) => {
-                    const active = mode === m;
-                    return (
-                      <button
-                        key={m}
-                        onClick={() => onModeChange?.(m)}
-                        style={{
-                          height: 30,
-                          padding: "0 16px",
-                          border: 0,
-                          background: active ? "var(--surface)" : "transparent",
-                          color: active ? "var(--ink)" : "var(--ink-3)",
-                          fontSize: 12.5,
-                          fontWeight: 500,
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
-                        }}
-                      >
-                        {m === "light" ? "Claro" : "Oscuro"}
-                      </button>
-                    );
-                  })}
-                </div>
-              </Row>
-              <Row
-                label="Tamaño del texto"
-                hint="Aumenta o reduce el tamaño de toda la interfaz."
-              >
-                <div style={{ display: "flex", gap: 6 }}>
-                  {TEXT_SCALES.map((s) => {
-                    const active = Math.abs(textScale - s.value) < 0.01;
-                    return (
-                      <button
-                        key={s.value}
-                        onClick={() => onTextScaleChange?.(s.value)}
-                        title={s.label}
-                        style={{
-                          display: "inline-flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 2,
-                          padding: "0 14px",
-                          height: 52,
-                          borderRadius: 7,
-                          border: `1px solid ${
-                            active ? "var(--accent)" : "var(--line)"
-                          }`,
-                          background: active
-                            ? "var(--accent)"
-                            : "var(--surface)",
-                          color: active
-                            ? "var(--accent-ink)"
-                            : "var(--ink-2)",
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: Math.round(11 + (s.value - 0.9) * 14),
-                            lineHeight: 1,
-                          }}
-                        >
-                          Aa
-                        </span>
-                        <span style={{ fontSize: 10.5, opacity: 0.8 }}>{s.label}</span>
                       </button>
                     );
                   })}

@@ -50,10 +50,11 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 - **Relleno de silencio:** `transcribe_audio` añade 500 ms de ceros al inicio **y al final** del audio. Sin el del final, whisper se come la última palabra cuando paras justo al terminar de hablar (igual que se comía la primera sin el del inicio).
 
 ## Temas
-- 3 temas × 2 modos: `arena`, `pizarra`, `bosque` en `light` y `dark`
-- CSS aplicado vía `body[data-palette="${id}-${mode}"]`
-- Definidos en `src/state/theme.ts` y `src/styles/global.css`
+- 7 temas × 2 modos: `pizarra` (gratis, default), `arena`, `bosque`, `coral`, `medianoche`, `oceano`, `mono` ("Blanco y negro") en `light` y `dark`. Todos menos `pizarra` son premium.
+- CSS aplicado vía `body[data-palette="${id}-${mode}"]` — cada tema = 2 bloques (light+dark) con ~19 variables en `src/styles/global.css`. Al añadir uno hay que tocar además el grupo `--dot-rest` y la línea de `background` de scrollbar.
+- Definidos en `src/state/theme.ts` (array `THEMES`, tipo `ThemeId`) y `src/styles/global.css`
 - Las dos claves de localStorage: `localwhisper.theme` y `localwhisper.themeMode`
+- **Ajustes → Personalización** (sección propia): Modo, Tamaño de texto y Temas. El tamaño de texto por defecto es "Muy grande" (`DEFAULT_TEXT_SCALE = 1.3` en `preferences.ts`).
 
 ## Diccionario
 
