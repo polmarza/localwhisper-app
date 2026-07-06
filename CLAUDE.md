@@ -109,16 +109,13 @@ Implementado en `src-tauri/src/license.rs` (no en JS) para evitar que DevTools m
 
 ### Lemon Squeezy
 - Cuenta: `local-whisper.lemonsqueezy.com`
-- Producto: "Local Whisper — Licencia" (lifetime, 3 activaciones, license keys ON)
-- Checkout URL (**TEST MODE** ahora mismo): `https://local-whisper.lemonsqueezy.com/checkout/buy/b2ace9f5-c28b-49de-a877-229ff41d481a` (configurada en `src/state/license.ts` como `PURCHASE_URL`)
+- Producto: "Local Whisper — Licencia" (lifetime, 3 activaciones, license keys ON), **precio de salida 29 €**
+- Checkout URL (**LIVE / producción**): `https://local-whisper.lemonsqueezy.com/checkout/buy/822299b8-b059-41c5-a8d4-ce56c3ef3e81` (configurada en `src/state/license.ts` como `PURCHASE_URL`)
+- URL antigua de TEST (por si hay que volver a probar en test mode): `…/checkout/buy/b2ace9f5-c28b-49de-a877-229ff41d481a`
 
-**⚠️ Antes de lanzar en producción:**
-1. En LS, desactivar Test Mode (entornos test/live están completamente separados)
-2. Recrear el producto en live mode con la misma config (lifetime, 3 activations, license keys ON, tax category Software, mismos textos de confirmación/email)
-3. Copiar la nueva URL de checkout (UUID distinto) y actualizar `PURCHASE_URL` en `src/state/license.ts`
-4. Verificar que la cuenta de pago (Stripe payouts) está conectada a banco real
+**✅ Ya en producción.** Antes de lanzar se hizo: desactivar Test Mode, recrear el producto en live (lifetime, 3 activations, license keys ON, tax category Software), y actualizar `PURCHASE_URL`. Verificar que los payouts (Stripe) apuntan a banco real.
 
-Para test con tarjeta de Stripe: `4242 4242 4242 4242`, expiry `12/30`, CVC `123`, postal cualquiera.
+⚠️ **Ojo:** los entornos test/live están completamente separados — las license keys de test NO funcionan en live y viceversa. Para probar pagos reales, tarjeta de Stripe en modo test ya no aplica; usa el flujo live real (o vuelve a la URL de test arriba).
 
 ## Atajo de teclado global
 
