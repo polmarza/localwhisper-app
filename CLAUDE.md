@@ -61,17 +61,18 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 ## Sistema de licencias
 
 ### Modelo
-- **La grabación/transcripción es SIEMPRE gratis e ilimitada** — nunca se bloquea, ni durante ni después del trial. La licencia solo desbloquea *extras premium*.
-- **Funciones premium:** la pantalla de **Estadísticas** (`insights`), los **temas `arena` y `bosque`**, y la **transcripción en directo (VAD streaming)**. El tema `pizarra` es el gratuito por defecto.
-- **14 días de trial premium:** durante los primeros 14 días todos tienen las funciones premium. Al caducar sin clave válida → se bloquean Estadísticas y arena/bosque (fallback automático a `pizarra`), pero la grabación sigue intacta.
-- **Pago único lifetime** vía Lemon Squeezy
+- **Freemium con tope semanal:** la transcripción es gratis pero **limitada a 2.000 palabras/semana** para usuarios sin licencia (modelo estilo Wispr Flow). El trial y la licencia dan transcripción **ilimitada**. Al agotar el tope, se bloquea *iniciar* un dictado nuevo (upsell) hasta que se renueva la semana o se activa una clave.
+- **Premium (trial o licencia) desbloquea:** transcripción ilimitada + la pantalla de **Estadísticas** (`insights`) + los **temas `arena` y `bosque`** + la **transcripción en directo (VAD streaming)**. El tema `pizarra` es el gratuito por defecto.
+- **14 días de trial premium:** durante los primeros 14 días todo va sin límites. Al caducar sin clave válida → tope de 2.000 palabras/semana y se bloquean Estadísticas / VAD / arena·bosque (fallback automático a `pizarra`).
+- **Pago único lifetime** vía Lemon Squeezy (**precio de salida 29 €**, a subir más adelante).
 - **3 activaciones por licencia** (configurado en el dashboard de LS)
 
-Implementación del gating (todo en frontend; Rust solo calcula `status`):
-- `hasPremium(state)` en `src/state/license.ts` — antes era `canRecord`; la grabación ya no se comprueba.
+Implementación del gating (todo en frontend; Rust calcula `status` y lleva el contador):
+- `hasPremium(state)` en `src/state/license.ts` — antes era `canRecord`.
+- **Tope semanal:** contador en Rust `src-tauri/src/usage.rs` (`UsageStore` → `AppData/usage.json`, **no localStorage**, para que borrar la caché no lo resetee). Comandos `usage_get_state` / `usage_add_words`, con reset por semanas. Frontend: `src/state/usage.ts` (`WEEKLY_WORD_CAP = 2000`, `countWords`, `wordsRemaining`) + `useUsage`. En `App.tsx`: se cuentan palabras en `onResult` (solo si no premium) y `guardedToggle` bloquea iniciar si `overQuota`. El `LicenseBanner` muestra las palabras restantes.
 - `isPremiumTheme(id)` / `FREE_THEME` en `src/state/theme.ts`.
 - `App.tsx` — bloqueo de Estadísticas (`<PremiumLocked>`), candado en el nav (`Sidebar`) y auto-downgrade de tema al caducar el premium.
-- `Settings.tsx` — candado en el selector de temas premium.
+- `Settings.tsx` — candado en el selector de temas premium y en el toggle de VAD.
 
 ### Fuente de verdad
 El estado vive en `AppData/license.json` — **NO en localStorage**. Esto es deliberado: borrar la caché de WebKit no debe resetear el trial ni perder la clave.

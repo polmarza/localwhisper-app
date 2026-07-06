@@ -1,4 +1,5 @@
 mod license;
+mod usage;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -782,6 +783,11 @@ pub fn run() {
             // re-read from disk on every transcription.
             app.manage(WhisperCache::default());
 
+            // Free-tier weekly word quota (AppData/usage.json).
+            let usage_store = usage::UsageStore::load(app.handle())
+                .map_err(|e| format!("usage init: {e}"))?;
+            app.manage(usage_store);
+
             // Pop the macOS Accessibility prompt on first launch so the user
             // can grant the permission needed for the paste step. After they
             // approve, Local Whisper appears in Privacy & Security → Accessibility.
@@ -806,6 +812,8 @@ pub fn run() {
             license::license_activate,
             license::license_validate,
             license::license_deactivate,
+            usage::usage_get_state,
+            usage::usage_add_words,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

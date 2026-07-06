@@ -49,8 +49,10 @@ import {
 } from "./state/theme";
 import { findTier, tierForFile } from "./state/tiers";
 import { hasPremium, shouldShowLicenseBanner } from "./state/license";
+import { countWords, wordsRemaining } from "./state/usage";
 import { PremiumLocked } from "./components/PremiumLocked";
 import { useLicense } from "./hooks/useLicense";
+import { useUsage } from "./hooks/useUsage";
 import type { SettingsSection } from "./screens/Settings";
 
 export type Screen = "home" | "insights" | "dictionary" | "settings" | "help";
@@ -224,6 +226,14 @@ function Dashboard({
     setMicDeviceIdState(id);
   }, []);
 
+  // onResult and guardedToggle are created before license + usage are known.
+  // These refs let them read the latest values at call time without being
+  // recreated (which would leak stale global-shortcut listeners).
+  const premiumRef = useRef(false);
+  const addWordsRef = useRef<(n: number) => void>(() => {});
+  const statusRef = useRef<string>("idle");
+  const overQuotaRef = useRef(false);
+
   const onResult = useCallback((r: RecorderResult) => {
     setLastResult(r);
     setLastError(null);
@@ -237,6 +247,13 @@ function Dashboard({
       setTutorialCaptured(r.text);
       tutorialInterceptRef.current = false;
       return;
+    }
+
+    // Count words against the free-tier weekly quota. Premium (trial/licensed)
+    // is unlimited and never counted.
+    if (!premiumRef.current) {
+      const words = countWords(r.text);
+      if (words > 0) void addWordsRef.current(words);
     }
 
     // Both side-effects are gated by preferences read at the moment of the
@@ -295,6 +312,16 @@ function Dashboard({
   // never briefly flash premium-only surfaces to a lapsed user.
   const premium = license.state ? hasPremium(license.state) : false;
 
+  // Free-tier weekly word quota. Premium (trial/licensed) is unlimited; a free
+  // user who's used up the week's words is blocked from starting a new
+  // dictation until it resets or they buy a license.
+  const usage = useUsage();
+  const overQuota = !premium && !!usage.state && wordsRemaining(usage.state) <= 0;
+
+  premiumRef.current = premium;
+  addWordsRef.current = usage.addWords;
+  overQuotaRef.current = overQuota;
+
   const { status, elapsedSec, toggle } = useRecorder({
     modelFile,
     language,
@@ -305,6 +332,7 @@ function Dashboard({
     onResult,
     onError: setLastError,
   });
+  statusRef.current = status;
 
   // If premium lapses while a premium theme is selected, fall the user back to
   // the free theme. Gated on `license.state` being loaded so we never clobber a
@@ -342,8 +370,14 @@ function Dashboard({
     return () => window.removeEventListener("replay-tutorial", handler);
   }, []);
 
-  // Recording is free for everyone — no license gate here anymore.
+  // Starting a dictation is blocked only when a free user has exhausted their
+  // weekly word quota — then we surface the upsell modal. Stopping an in-flight
+  // recording is always allowed.
   const guardedToggle = useCallback(() => {
+    if (statusRef.current !== "recording" && overQuotaRef.current) {
+      setLicenseModalOpen(true);
+      return;
+    }
     toggle();
   }, [toggle]);
 
@@ -433,6 +467,11 @@ function Dashboard({
           {license.state && shouldShowLicenseBanner(license.state) && (
             <LicenseBanner
               state={license.state}
+              remaining={
+                !premium && usage.state
+                  ? wordsRemaining(usage.state)
+                  : undefined
+              }
               onActivate={() => setLicenseModalOpen(true)}
             />
           )}
