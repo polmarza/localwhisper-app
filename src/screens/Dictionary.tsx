@@ -11,6 +11,8 @@ type EditState = {
   notes: string;
 };
 
+const EMPTY_EDIT: EditState = { id: null, term: "", replacement: "", notes: "" };
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -46,7 +48,9 @@ export function DictionaryScreen({
   onDelete?: (id: number) => Promise<void>;
 } = {}) {
   const [query, setQuery] = useState("");
-  const [edit, setEdit] = useState<EditState | null>(null);
+  // The editor is always open — either editing an existing entry or ready to
+  // add a new one — so users don't hit a "select an entry" dead end.
+  const [edit, setEdit] = useState<EditState>(EMPTY_EDIT);
   const [busy, setBusy] = useState(false);
 
   const filtered = entries.filter(
@@ -56,8 +60,7 @@ export function DictionaryScreen({
       e.replacement.toLowerCase().includes(query.toLowerCase()),
   );
 
-  const startNew = () =>
-    setEdit({ id: null, term: "", replacement: "", notes: "" });
+  const startNew = () => setEdit(EMPTY_EDIT);
   const startEdit = (e: DictionaryEntry) =>
     setEdit({
       id: e.id,
@@ -66,10 +69,10 @@ export function DictionaryScreen({
       notes: e.notes ?? "",
     });
 
-  const canSave = !!edit && edit.term.trim() !== "" && edit.replacement.trim() !== "";
+  const canSave = edit.term.trim() !== "" && edit.replacement.trim() !== "";
 
   const save = async () => {
-    if (!edit || !canSave || busy) return;
+    if (!canSave || busy) return;
     setBusy(true);
     try {
       const term = edit.term.trim();
@@ -80,7 +83,7 @@ export function DictionaryScreen({
       } else {
         await onUpdate?.(edit.id, term, replacement, notes);
       }
-      setEdit(null);
+      setEdit(EMPTY_EDIT);
     } catch (e) {
       console.error("save dictionary entry failed", e);
     } finally {
@@ -89,11 +92,11 @@ export function DictionaryScreen({
   };
 
   const remove = async () => {
-    if (!edit || edit.id === null || busy) return;
+    if (edit.id === null || busy) return;
     setBusy(true);
     try {
       await onDelete?.(edit.id);
-      setEdit(null);
+      setEdit(EMPTY_EDIT);
     } catch (e) {
       console.error("delete dictionary entry failed", e);
     } finally {
@@ -405,8 +408,8 @@ export function DictionaryScreen({
                   <span />
                 )}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <Btn variant="ghost" size="md" onClick={() => setEdit(null)}>
-                    Cancelar
+                  <Btn variant="ghost" size="md" onClick={() => setEdit(EMPTY_EDIT)}>
+                    {edit.id === null ? "Limpiar" : "Cancelar"}
                   </Btn>
                   <Btn
                     variant="primary"
