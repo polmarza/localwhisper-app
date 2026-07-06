@@ -1,12 +1,10 @@
 import { useState } from "react";
 import {
-  IconAa,
   IconBook,
   IconChart,
   IconCog,
   IconHelp,
   IconHome,
-  IconWand,
 } from "./Icons";
 import { NavItem, Waveform } from "./Ui";
 import type { Screen } from "../App";
@@ -127,12 +125,6 @@ export function Sidebar({
           label="Diccionario"
           active={active === "dictionary"}
           onClick={() => onNavigate("dictionary")}
-        />
-        <NavItem icon={<IconAa size={16} />} label="Estilo" disabled />
-        <NavItem
-          icon={<IconWand size={16} />}
-          label="Transformaciones"
-          disabled
         />
       </nav>
 

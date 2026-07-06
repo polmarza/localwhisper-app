@@ -6,6 +6,13 @@ import { getVadStreaming } from "../state/preferences";
 const TARGET_SAMPLE_RATE = 16_000;
 const BUFFER_SIZE = 4096;
 
+// VAD streaming is retired for now: it only existed to mask slow transcription,
+// which is fixed (Metal on Mac). Chunking hurts quality (whisper mis-detects
+// language and drops short segments), so it's disabled and hidden from the UI.
+// The implementation is kept below for a possible future revisit (e.g. Windows
+// CPU). Flip this to true (and restore the Settings toggle) to re-enable.
+const VAD_STREAMING_ENABLED = false;
+
 // --- VAD streaming tunables ------------------------------------------------
 // Energy-based voice activity detection. A frame whose RMS is above the
 // threshold counts as speech; a run of silence after speech closes a segment,
@@ -197,7 +204,8 @@ export function useRecorder(opts: {
     processorRef.current = processor;
     chunksRef.current = [];
 
-    const streaming = getVadStreaming() && streamingAllowedRef.current;
+    const streaming =
+      VAD_STREAMING_ENABLED && getVadStreaming() && streamingAllowedRef.current;
     streamingRef.current = streaming;
 
     if (streaming) {

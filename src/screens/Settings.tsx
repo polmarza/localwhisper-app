@@ -21,10 +21,8 @@ import { downloadWhisperModel, type ProgressEvent } from "../lib/tauri";
 import {
   getAutopaste,
   getStoreLocal,
-  getVadStreaming,
   setAutopaste,
   setStoreLocal,
-  setVadStreaming,
   TEXT_SCALES,
 } from "../state/preferences";
 import {
@@ -276,7 +274,6 @@ export function SettingsScreen({
   // on the next dictation).
   const [autopaste, setAutopasteState] = useState(() => getAutopaste());
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
-  const [vadStreaming, setVadStreamingState] = useState(() => getVadStreaming());
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -285,10 +282,6 @@ export function SettingsScreen({
   const persistStoreLocal = (v: boolean) => {
     setStoreLocalState(v);
     setStoreLocal(v);
-  };
-  const persistVadStreaming = (v: boolean) => {
-    setVadStreamingState(v);
-    setVadStreaming(v);
   };
 
   const [installedTiers, setInstalledTiers] = useState<string[]>(() =>
@@ -490,23 +483,6 @@ export function SettingsScreen({
                 hint="Inserta el texto en la app activa al terminar de transcribir."
               >
                 <Toggle on={autopaste} onChange={persistAutopaste} />
-              </Row>
-              <Row
-                label="Transcripción en directo"
-                hint="Transcribe mientras hablas, troceando por silencios, para que al parar apenas haya espera. Ideal para dictados largos. Función premium."
-              >
-                {premium ? (
-                  <Toggle on={vadStreaming} onChange={persistVadStreaming} />
-                ) : (
-                  <Btn
-                    size="sm"
-                    variant="ghost"
-                    icon={<IconLock size={13} />}
-                    onClick={() => onActivateLicense?.()}
-                  >
-                    Premium
-                  </Btn>
-                )}
               </Row>
               <Row
                 label="Tema"

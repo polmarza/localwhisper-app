@@ -1,4 +1,4 @@
-import type { Hardware } from "./hardware";
+import { getPlatformName, type Hardware } from "./hardware";
 
 export type TierId = "small" | "medium" | "large";
 
@@ -59,10 +59,13 @@ export function tierForFile(fileName: string): TierId | null {
 }
 
 export function recommendTier(hw: Hardware): TierId {
-  // Equilibrada es nuestra recomendación por defecto: large-v3-turbo cuantizado
-  // es genuinamente bueno para casi cualquier equipo moderno, y los 548 MB son
-  // asumibles. Solo recomendamos Ligera en equipos antiguos donde 8 GB sea
-  // ajustado para la carga adicional del modelo.
+  // Windows/Linux transcriben en CPU (sin Metal), así que los modelos grandes
+  // van lentos — recomendamos Ligera por defecto en esas plataformas.
+  if (getPlatformName() !== "Mac") return "small";
+  // Equilibrada es nuestra recomendación por defecto en Mac: large-v3-turbo
+  // cuantizado es genuinamente bueno para casi cualquier equipo moderno, y los
+  // 548 MB son asumibles. Solo recomendamos Ligera en equipos antiguos donde 8
+  // GB sea ajustado para la carga adicional del modelo.
   if (hw.total_ram_gb < 8) return "small";
   // Máxima solo para Apple Silicon con holgura de RAM — en equipos con menos
   // recursos los beneficios marginales no compensan el coste en velocidad.
@@ -71,6 +74,11 @@ export function recommendTier(hw: Hardware): TierId {
 }
 
 export function tierWarning(id: TierId, hw: Hardware): string | null {
+  // On Windows/Linux there's no GPU backend yet, so anything above Ligera runs
+  // on CPU and is noticeably slower. Let the user install it, but warn.
+  if (getPlatformName() !== "Mac" && id !== "small") {
+    return "En Windows y Linux la transcripción usa la CPU (todavía sin aceleración por GPU), así que las instalaciones Equilibrada y Máxima irán bastante más lentas. Para máxima velocidad, elige la Ligera.";
+  }
   if (id === "large") {
     if (!hw.is_apple_silicon) {
       return "La instalación Máxima está pensada para Apple Silicon. En tu equipo funcionará, pero la transcripción será notablemente más lenta.";
