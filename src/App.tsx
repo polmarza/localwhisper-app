@@ -16,7 +16,11 @@ import { SettingsScreen } from "./screens/Settings";
 import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 import { formatDuration, useRecorder, type RecorderResult } from "./hooks/useRecorder";
 import { pasteText } from "./lib/tauri";
-import { clearTranscriptions, insertTranscription } from "./lib/db";
+import {
+  clearTranscriptions,
+  insertTranscription,
+  type DictionaryEntry,
+} from "./lib/db";
 import {
   getSelectedModelFile,
   isOnboardingCompleted,
@@ -53,6 +57,8 @@ import { countWords, wordsRemaining } from "./state/usage";
 import { PremiumLocked } from "./components/PremiumLocked";
 import { useLicense } from "./hooks/useLicense";
 import { useUsage } from "./hooks/useUsage";
+import { useDictionary } from "./hooks/useDictionary";
+import { applyDictionary } from "./lib/dictionary";
 import type { SettingsSection } from "./screens/Settings";
 
 export type Screen = "home" | "insights" | "dictionary" | "settings" | "help";
@@ -233,18 +239,22 @@ function Dashboard({
   const addWordsRef = useRef<(n: number) => void>(() => {});
   const statusRef = useRef<string>("idle");
   const overQuotaRef = useRef(false);
+  const dictionaryRef = useRef<DictionaryEntry[]>([]);
 
   const onResult = useCallback((r: RecorderResult) => {
-    setLastResult(r);
     setLastError(null);
-    if (!r.text) return;
+    // Apply dictionary corrections first so paste, history and the word count
+    // all use the corrected text.
+    const text = r.text ? applyDictionary(r.text, dictionaryRef.current) : r.text;
+    setLastResult({ ...r, text });
+    if (!text) return;
 
     // Tutorial intercept: during the practice step we route the transcription
     // into the modal's "captured text" state instead of doing the normal
     // autopaste/storage. The user expects the text to land in the tutorial,
     // not in whatever app happens to have focus behind it.
     if (tutorialInterceptRef.current) {
-      setTutorialCaptured(r.text);
+      setTutorialCaptured(text);
       tutorialInterceptRef.current = false;
       return;
     }
@@ -252,7 +262,7 @@ function Dashboard({
     // Count words against the free-tier weekly quota. Premium (trial/licensed)
     // is unlimited and never counted.
     if (!premiumRef.current) {
-      const words = countWords(r.text);
+      const words = countWords(text);
       if (words > 0) void addWordsRef.current(words);
     }
 
@@ -269,7 +279,7 @@ function Dashboard({
       let appName: string | null = null;
       if (autopaste) {
         try {
-          const outcome = await pasteText(r.text);
+          const outcome = await pasteText(text);
           pasted = outcome.pasted;
           appName = outcome.app;
         } catch (err) {
@@ -279,7 +289,7 @@ function Dashboard({
       if (storeLocal) {
         try {
           await insertTranscription({
-            text: r.text,
+            text,
             app: appName,
             durationMs: Math.round(r.durationSec * 1000),
             pasted,
@@ -316,11 +326,13 @@ function Dashboard({
   // user who's used up the week's words is blocked from starting a new
   // dictation until it resets or they buy a license.
   const usage = useUsage();
+  const dictionary = useDictionary();
   const overQuota = !premium && !!usage.state && wordsRemaining(usage.state) <= 0;
 
   premiumRef.current = premium;
   addWordsRef.current = usage.addWords;
   overQuotaRef.current = overQuota;
+  dictionaryRef.current = dictionary.entries;
 
   const { status, elapsedSec, toggle } = useRecorder({
     modelFile,
@@ -482,6 +494,7 @@ function Dashboard({
                 refreshKey={historyVersion}
                 modelName={modelDisplayName}
                 onNavigate={onNavigate}
+                onAddToDictionary={dictionary.add}
               />
             )}
             {screen === "insights" &&
@@ -494,7 +507,14 @@ function Dashboard({
                   onActivate={() => setLicenseModalOpen(true)}
                 />
               ))}
-            {screen === "dictionary" && <DictionaryScreen />}
+            {screen === "dictionary" && (
+              <DictionaryScreen
+                entries={dictionary.entries}
+                onAdd={dictionary.add}
+                onUpdate={dictionary.update}
+                onDelete={dictionary.remove}
+              />
+            )}
             {screen === "help" && <HelpScreen />}
             {screen === "settings" && (
               <SettingsScreen

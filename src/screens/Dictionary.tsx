@@ -1,33 +1,15 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { IconPlus, IconSearch } from "../components/Icons";
-import { Btn, Card, Kbd, Pill, inputStyle } from "../components/Ui";
+import { Btn, Card, inputStyle } from "../components/Ui";
+import type { DictionaryEntry } from "../lib/db";
 
-type DictEntry = {
-  id: number;
+type EditState = {
+  id: number | null; // null = new entry
   term: string;
   replacement: string;
   notes: string;
-  category: string;
-  uses: number;
 };
-
-const DICT_ENTRIES: DictEntry[] = [
-  { id: 1, term: "Anthropic", replacement: "Anthropic", notes: "Empresa", category: "Marcas", uses: 142 },
-  { id: 2, term: "wisper", replacement: "Local Whisper", notes: "Producto", category: "Marcas", uses: 86 },
-  { id: 3, term: "pol gerart", replacement: "Pol Gerard", notes: "Mi nombre", category: "Personas", uses: 73 },
-  { id: 4, term: "mer", replacement: "Mer Vidal", notes: "Diseñadora del equipo", category: "Personas", uses: 51 },
-  { id: 5, term: "cer si es", replacement: "que sí, es", notes: "Frase frecuente", category: "Expresiones", uses: 38 },
-  { id: 6, term: "OKR", replacement: "OKR", notes: "Acrónimo", category: "Acrónimos", uses: 34 },
-  { id: 7, term: "SLA", replacement: "SLA", notes: "Acrónimo", category: "Acrónimos", uses: 27 },
-  { id: 8, term: "nubi", replacement: "NUBI", notes: "Producto interno", category: "Marcas", uses: 24 },
-  { id: 9, term: "roadmaping", replacement: "roadmapping", notes: "Ortografía", category: "Expresiones", uses: 21 },
-  { id: 10, term: "sebastian gomara", replacement: "Sebastián Gómara", notes: "CTO", category: "Personas", uses: 19 },
-  { id: 11, term: "a be testing", replacement: "A/B testing", notes: "Término técnico", category: "Expresiones", uses: 17 },
-  { id: 12, term: "figma", replacement: "Figma", notes: "Herramienta", category: "Marcas", uses: 16 },
-];
-
-const CATEGORIES = ["Todos", "Personas", "Marcas", "Acrónimos", "Expresiones"];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -47,19 +29,77 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function DictionaryScreen() {
-  const [cat, setCat] = useState("Todos");
+export function DictionaryScreen({
+  entries = [],
+  onAdd,
+  onUpdate,
+  onDelete,
+}: {
+  entries?: DictionaryEntry[];
+  onAdd?: (term: string, replacement: string, notes?: string | null) => Promise<void>;
+  onUpdate?: (
+    id: number,
+    term: string,
+    replacement: string,
+    notes?: string | null,
+  ) => Promise<void>;
+  onDelete?: (id: number) => Promise<void>;
+} = {}) {
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(2);
+  const [edit, setEdit] = useState<EditState | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const filtered = DICT_ENTRIES.filter(
+  const filtered = entries.filter(
     (e) =>
-      (cat === "Todos" || e.category === cat) &&
-      (!query ||
-        e.term.toLowerCase().includes(query.toLowerCase()) ||
-        e.replacement.toLowerCase().includes(query.toLowerCase()))
+      !query ||
+      e.term.toLowerCase().includes(query.toLowerCase()) ||
+      e.replacement.toLowerCase().includes(query.toLowerCase()),
   );
-  const sel = DICT_ENTRIES.find((e) => e.id === selected);
+
+  const startNew = () =>
+    setEdit({ id: null, term: "", replacement: "", notes: "" });
+  const startEdit = (e: DictionaryEntry) =>
+    setEdit({
+      id: e.id,
+      term: e.term,
+      replacement: e.replacement,
+      notes: e.notes ?? "",
+    });
+
+  const canSave = !!edit && edit.term.trim() !== "" && edit.replacement.trim() !== "";
+
+  const save = async () => {
+    if (!edit || !canSave || busy) return;
+    setBusy(true);
+    try {
+      const term = edit.term.trim();
+      const replacement = edit.replacement.trim();
+      const notes = edit.notes.trim() || null;
+      if (edit.id === null) {
+        await onAdd?.(term, replacement, notes);
+      } else {
+        await onUpdate?.(edit.id, term, replacement, notes);
+      }
+      setEdit(null);
+    } catch (e) {
+      console.error("save dictionary entry failed", e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!edit || edit.id === null || busy) return;
+    setBusy(true);
+    try {
+      await onDelete?.(edit.id);
+      setEdit(null);
+    } catch (e) {
+      console.error("delete dictionary entry failed", e);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div
@@ -92,17 +132,16 @@ export function DictionaryScreen() {
           >
             Diccionario
           </h2>
-          <p
-            style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-2)" }}
-          >
-            Enseña a Local Whisper cómo escribir nombres propios, marcas y
-            expresiones.
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-2)" }}>
+            Corrige cómo Local Whisper escribe nombres propios, marcas y
+            expresiones. Se aplica automáticamente a cada transcripción.
             <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>
-              {DICT_ENTRIES.length} entradas · sincronizadas localmente
+              {entries.length}{" "}
+              {entries.length === 1 ? "entrada" : "entradas"}
             </span>
           </p>
         </div>
-        <Btn variant="primary" icon={<IconPlus size={14} />} size="md">
+        <Btn variant="primary" icon={<IconPlus size={14} />} size="md" onClick={startNew}>
           Añadir entrada
         </Btn>
       </div>
@@ -137,37 +176,6 @@ export function DictionaryScreen() {
               color: "var(--ink)",
             }}
           />
-          <Kbd>⌘</Kbd>
-          <Kbd>K</Kbd>
-        </div>
-        <div
-          style={{
-            display: "inline-flex",
-            padding: 2,
-            background: "var(--sidebar-2)",
-            borderRadius: 8,
-            height: 36,
-          }}
-        >
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCat(c)}
-              style={{
-                padding: "0 12px",
-                fontSize: 12.5,
-                fontWeight: 500,
-                border: 0,
-                borderRadius: 6,
-                background: cat === c ? "var(--surface)" : "transparent",
-                color: cat === c ? "var(--ink)" : "var(--ink-2)",
-                boxShadow:
-                  cat === c ? "0 1px 2px rgba(0,0,0,.06)" : "none",
-              }}
-            >
-              {c}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -182,16 +190,12 @@ export function DictionaryScreen() {
       >
         <Card
           padding={0}
-          style={{
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          }}
+          style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}
         >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.1fr 1.4fr 1fr 80px",
+              gridTemplateColumns: "1fr 1.2fr",
               padding: "12px 18px",
               borderBottom: "1px solid var(--line)",
               fontSize: 11,
@@ -203,49 +207,50 @@ export function DictionaryScreen() {
           >
             <span>Cuando oigas</span>
             <span>Escribe</span>
-            <span>Categoría</span>
-            <span style={{ textAlign: "right" }}>Usos</span>
           </div>
           <div className="scroll" style={{ overflowY: "auto", flex: 1 }}>
             {filtered.map((e) => (
               <button
                 key={e.id}
-                onClick={() => setSelected(e.id)}
+                onClick={() => startEdit(e)}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.1fr 1.4fr 1fr 80px",
+                  gridTemplateColumns: "1fr 1.2fr",
                   padding: "13px 18px",
                   width: "100%",
                   textAlign: "left",
                   border: 0,
                   borderBottom: "1px solid var(--line-2)",
                   background:
-                    selected === e.id ? "var(--accent-soft)" : "transparent",
+                    edit?.id === e.id ? "var(--accent-soft)" : "transparent",
                   alignItems: "center",
                   gap: 10,
                   fontSize: 13.5,
                   color: "var(--ink)",
+                  cursor: "pointer",
                 }}
               >
                 <span
                   className="mono"
-                  style={{ fontSize: 12.5, color: "var(--ink-2)" }}
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--ink-2)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
                 >
                   {e.term}
                 </span>
-                <span style={{ fontWeight: 500 }}>{e.replacement}</span>
-                <span>
-                  <Pill>{e.category}</Pill>
-                </span>
                 <span
                   style={{
-                    textAlign: "right",
-                    color: "var(--ink-3)",
-                    fontSize: 12.5,
-                    fontVariantNumeric: "tabular-nums",
+                    fontWeight: 500,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {e.uses}
+                  {e.replacement}
                 </span>
               </button>
             ))}
@@ -256,131 +261,186 @@ export function DictionaryScreen() {
                   textAlign: "center",
                   color: "var(--ink-3)",
                   fontSize: 13,
+                  lineHeight: 1.5,
                 }}
               >
-                No hay entradas que coincidan
+                {entries.length === 0 ? (
+                  <>
+                    Aún no hay entradas. Añade una, o selecciona una palabra en
+                    el historial de Inicio para corregirla.
+                  </>
+                ) : (
+                  "No hay entradas que coincidan"
+                )}
               </div>
             )}
           </div>
         </Card>
 
         <Card padding={22}>
-          <div
-            style={{
-              marginBottom: 6,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: ".10em",
-              textTransform: "uppercase",
-              color: "var(--ink-3)",
-            }}
-          >
-            Editar entrada
-          </div>
-          <div
-            className="serif"
-            style={{
-              fontSize: 26,
-              color: "var(--ink)",
-              marginBottom: 22,
-              letterSpacing: "-.015em",
-            }}
-          >
-            {sel?.replacement}
-          </div>
+          {edit ? (
+            <>
+              <div
+                style={{
+                  marginBottom: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: ".10em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-3)",
+                }}
+              >
+                {edit.id === null ? "Nueva entrada" : "Editar entrada"}
+              </div>
+              <div
+                className="serif"
+                style={{
+                  fontSize: 26,
+                  color: "var(--ink)",
+                  marginBottom: 22,
+                  letterSpacing: "-.015em",
+                  minHeight: 32,
+                }}
+              >
+                {edit.replacement || "—"}
+              </div>
 
-          <Field label="Cuando oigas">
-            <input
-              className="mono"
-              defaultValue={sel?.term}
-              style={inputStyle()}
-            />
-          </Field>
-          <Field label="Escribe">
-            <input defaultValue={sel?.replacement} style={inputStyle()} />
-          </Field>
-          <Field label="Categoría">
-            <select defaultValue={sel?.category} style={inputStyle()}>
-              {CATEGORIES.filter((c) => c !== "Todos").map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Notas">
-            <textarea
-              defaultValue={sel?.notes}
-              rows={3}
-              style={{
-                ...inputStyle(),
-                height: "auto",
-                padding: "8px 10px",
-                resize: "vertical",
-              }}
-            />
-          </Field>
+              <Field label="Cuando oigas">
+                <input
+                  className="mono"
+                  value={edit.term}
+                  onChange={(ev) => setEdit({ ...edit, term: ev.target.value })}
+                  placeholder="lo que se transcribe"
+                  style={inputStyle()}
+                />
+              </Field>
+              <Field label="Escribe">
+                <input
+                  value={edit.replacement}
+                  onChange={(ev) =>
+                    setEdit({ ...edit, replacement: ev.target.value })
+                  }
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter") {
+                      ev.preventDefault();
+                      void save();
+                    }
+                  }}
+                  placeholder="cómo debería escribirse"
+                  style={inputStyle()}
+                />
+              </Field>
+              <Field label="Notas (opcional)">
+                <textarea
+                  value={edit.notes}
+                  onChange={(ev) => setEdit({ ...edit, notes: ev.target.value })}
+                  rows={3}
+                  style={{
+                    ...inputStyle(),
+                    height: "auto",
+                    padding: "8px 10px",
+                    resize: "vertical",
+                  }}
+                />
+              </Field>
 
-          <div
-            style={{
-              margin: "6px 0 18px",
-              padding: 12,
-              background: "var(--bg)",
-              borderRadius: 8,
-              border: "1px solid var(--line-2)",
-              fontSize: 12.5,
-              color: "var(--ink-2)",
-            }}
-          >
+              <div
+                style={{
+                  margin: "6px 0 18px",
+                  padding: 12,
+                  background: "var(--bg)",
+                  borderRadius: 8,
+                  border: "1px solid var(--line-2)",
+                  fontSize: 12.5,
+                  color: "var(--ink-2)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: ".06em",
+                    textTransform: "uppercase",
+                    color: "var(--ink-3)",
+                    marginBottom: 6,
+                  }}
+                >
+                  Vista previa
+                </div>
+                <div>
+                  <span className="mono" style={{ color: "var(--ink-3)" }}>
+                    «{edit.term || "…"}»
+                  </span>
+                  <span style={{ margin: "0 8px", color: "var(--ink-3)" }}>→</span>
+                  <span style={{ color: "var(--ink)", fontWeight: 500 }}>
+                    {edit.replacement || "…"}
+                  </span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                {edit.id !== null ? (
+                  <button
+                    onClick={remove}
+                    disabled={busy}
+                    style={{
+                      border: 0,
+                      background: "transparent",
+                      color: "var(--danger)",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      padding: "6px 0",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Eliminar
+                  </button>
+                ) : (
+                  <span />
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn variant="ghost" size="md" onClick={() => setEdit(null)}>
+                    Cancelar
+                  </Btn>
+                  <Btn
+                    variant="primary"
+                    size="md"
+                    onClick={save}
+                    disabled={!canSave || busy}
+                  >
+                    Guardar
+                  </Btn>
+                </div>
+              </div>
+            </>
+          ) : (
             <div
               style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: ".06em",
-                textTransform: "uppercase",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                gap: 12,
                 color: "var(--ink-3)",
-                marginBottom: 6,
-              }}
-            >
-              Vista previa
-            </div>
-            <div>
-              <span className="mono" style={{ color: "var(--ink-3)" }}>
-                «{sel?.term}»
-              </span>
-              <span style={{ margin: "0 8px", color: "var(--ink-3)" }}>→</span>
-              <span style={{ color: "var(--ink)", fontWeight: 500 }}>
-                {sel?.replacement}
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <button
-              style={{
-                border: 0,
-                background: "transparent",
-                color: "var(--danger)",
                 fontSize: 13,
-                fontWeight: 500,
-                padding: "6px 0",
+                lineHeight: 1.5,
+                padding: 20,
               }}
             >
-              Eliminar
-            </button>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="ghost" size="md">
-                Cancelar
-              </Btn>
-              <Btn variant="primary" size="md">
-                Guardar
+              Selecciona una entrada para editarla, o
+              <Btn variant="ghost" size="sm" icon={<IconPlus size={13} />} onClick={startNew}>
+                Añadir entrada
               </Btn>
             </div>
-          </div>
+          )}
         </Card>
       </div>
     </div>

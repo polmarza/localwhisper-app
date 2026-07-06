@@ -54,6 +54,15 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 - Definidos en `src/state/theme.ts` y `src/styles/global.css`
 - Las dos claves de localStorage: `localwhisper.theme` y `localwhisper.themeMode`
 
+## Diccionario
+
+Corrige cómo se escriben nombres/marcas/expresiones en la transcripción.
+
+- **Se aplica de verdad:** tras transcribir, `applyDictionary()` (`src/lib/dictionary.ts`) hace find/replace por **palabra completa, ignorando mayúsculas** (regex con lookarounds Unicode, así funciona con acentos), preservando la capitalización de inicio de frase. Se aplica en `App.tsx` `onResult` **antes** de pegar/guardar/contar palabras (cubre modo normal y streaming).
+- **Fuente única:** hook `useDictionary` (`src/hooks/useDictionary.ts`) → tabla SQLite `dictionary` (migración v2). CRUD en `src/lib/db.ts` (`add/list/update/deleteDictionaryEntry`). La pantalla (`src/screens/Dictionary.tsx`) y el popover de "seleccionar palabra del historial" (`src/screens/Home.tsx`) escriben en la **misma** tabla vía el hook.
+- Campos: `term` ("cuando oigas") → `replacement` ("escribe") + `notes` opcional. **Sin categorías** (se quitaron por confusas; la columna `category`/`uses` sigue en la BD pero no se usa en la UI).
+- ⚠️ Antes esto estaba a medias: la pantalla mostraba 12 entradas hardcodeadas y no se aplicaba nada. Ya no.
+
 ## Identificadores internos
 - Bundle ID: `com.localwhisper.app`
 - localStorage prefix: `localwhisper.*`

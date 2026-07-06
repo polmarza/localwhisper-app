@@ -397,11 +397,16 @@ export function HomeScreen({
   refreshKey = 0,
   modelName = "Modelo local",
   onNavigate,
+  onAddToDictionary,
 }: {
   userName: string;
   refreshKey?: number;
   modelName?: string;
   onNavigate?: (screen: Screen, settingsSection?: SettingsSection) => void;
+  // Provided by App so it writes through the shared dictionary hook (keeps the
+  // Dictionary screen + live corrections in sync). Falls back to a direct DB
+  // insert if omitted.
+  onAddToDictionary?: (term: string, replacement: string) => Promise<void>;
 }) {
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
   const [statsRows, setStatsRows] = useState<StatsRow[]>([]);
@@ -425,9 +430,10 @@ export function HomeScreen({
     };
   }, [refreshKey]);
 
-  const onAddToDictionary = async (term: string, replacement: string) => {
+  const addToDictionary = async (term: string, replacement: string) => {
     try {
-      await addDictionaryEntry({ term, replacement });
+      if (onAddToDictionary) await onAddToDictionary(term, replacement);
+      else await addDictionaryEntry({ term, replacement });
     } catch (e) {
       console.error("addDictionaryEntry failed", e);
     }
@@ -563,7 +569,7 @@ export function HomeScreen({
                 <TranscriptItem
                   key={t.id}
                   t={t}
-                  onAddToDictionary={onAddToDictionary}
+                  onAddToDictionary={addToDictionary}
                 />
               ))}
             </div>
