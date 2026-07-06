@@ -35,6 +35,7 @@ import {
   getSidebarWidth,
   getStoreLocal,
   getTextScale,
+  getTranscriptFont,
   setLanguage,
   setMicDeviceId,
   setSidebarWidth,
@@ -88,6 +89,13 @@ export function App() {
     // the splash and onboarding consistent with the user's choice.
     applyTheme(theme, mode);
   }, [theme, mode]);
+
+  useEffect(() => {
+    // Persisted transcript-text font (sans/mono) → body[data-font], read by the
+    // --transcript-font CSS variable. Applied once on load; Settings updates the
+    // attribute directly when the user changes it.
+    document.body.setAttribute("data-font", getTranscriptFont());
+  }, []);
 
   useEffect(() => {
     if (isOnboardingCompleted()) {

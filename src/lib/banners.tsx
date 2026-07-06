@@ -58,9 +58,9 @@ export const BANNERS: Banner[] = [
     badge: "PERSONALIZA · A TU ESTILO",
     title: <>Hazla {italic("tuya")}.</>,
     subtitle: () =>
-      "Cinco paletas claras u oscuras y cuatro tamaños de texto. Cambia el aspecto sin reiniciar la app.",
+      "Siete paletas claras u oscuras, tamaño de texto y tipografía. Cambia el aspecto sin reiniciar la app.",
     ctaLabel: "Elegir tema",
-    target: { screen: "settings", settingsSection: "general" },
+    target: { screen: "settings", settingsSection: "personalizacion" },
     Illustration: PaletteIllustration,
     showWhen: () => true,
   },
@@ -69,9 +69,9 @@ export const BANNERS: Banner[] = [
     badge: "Aa · LETRAS A TU MEDIDA",
     title: <>Tu {italic("tipo")}grafía favorita.</>,
     subtitle: () =>
-      "Sans, serif o monoespaciada. Próximamente podrás elegir cómo se lee tu historial.",
+      "Sans o monoespaciada: elige en Personalización cómo se lee tu historial.",
     ctaLabel: "Personalizar interfaz",
-    target: { screen: "settings", settingsSection: "general" },
+    target: { screen: "settings", settingsSection: "personalizacion" },
     Illustration: TypographyIllustration,
     showWhen: () => true,
   },

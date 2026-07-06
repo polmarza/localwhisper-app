@@ -5,6 +5,8 @@
 const KEY_AUTOPASTE = "localwhisper.autopaste";
 const KEY_STORE_LOCAL = "localwhisper.storeLocal";
 const KEY_VAD_STREAMING = "localwhisper.vadStreaming";
+const KEY_SOUNDS = "localwhisper.sounds";
+const KEY_TRANSCRIPT_FONT = "localwhisper.transcriptFont";
 const KEY_LANGUAGE = "localwhisper.language";
 const KEY_MIC_DEVICE = "localwhisper.micDeviceId";
 const KEY_TEXT_SCALE = "localwhisper.textScale";
@@ -33,6 +35,28 @@ export const setAutopaste = (v: boolean) => writeBool(KEY_AUTOPASTE, v);
 
 export const getStoreLocal = () => readBool(KEY_STORE_LOCAL, true);
 export const setStoreLocal = (v: boolean) => writeBool(KEY_STORE_LOCAL, v);
+
+// Play a short "pop" when recording starts and stops. On by default — it's
+// nice audio feedback, and easy to toggle off.
+export const getSounds = () => readBool(KEY_SOUNDS, true);
+export const setSounds = (v: boolean) => writeBool(KEY_SOUNDS, v);
+
+// Font used to render transcription/history text. "sans" (default) or "mono".
+export type TranscriptFont = "sans" | "mono";
+export function getTranscriptFont(): TranscriptFont {
+  try {
+    return localStorage.getItem(KEY_TRANSCRIPT_FONT) === "mono" ? "mono" : "sans";
+  } catch {
+    return "sans";
+  }
+}
+export function setTranscriptFont(v: TranscriptFont) {
+  try {
+    localStorage.setItem(KEY_TRANSCRIPT_FONT, v);
+  } catch {
+    // ignore
+  }
+}
 
 // VAD streaming: transcribe while the user talks, splitting on silences,
 // instead of processing the whole clip after they stop. Off by default —

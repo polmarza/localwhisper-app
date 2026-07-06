@@ -54,7 +54,9 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 - CSS aplicado vía `body[data-palette="${id}-${mode}"]` — cada tema = 2 bloques (light+dark) con ~19 variables en `src/styles/global.css`. Al añadir uno hay que tocar además el grupo `--dot-rest` y la línea de `background` de scrollbar.
 - Definidos en `src/state/theme.ts` (array `THEMES`, tipo `ThemeId`) y `src/styles/global.css`
 - Las dos claves de localStorage: `localwhisper.theme` y `localwhisper.themeMode`
-- **Ajustes → Personalización** (sección propia): Modo, Tamaño de texto y Temas. El tamaño de texto por defecto es "Muy grande" (`DEFAULT_TEXT_SCALE = 1.3` en `preferences.ts`).
+- **Ajustes → Personalización** (sección propia): Modo, Tamaño de texto, **Tipografía** y Temas. El tamaño de texto por defecto es "Muy grande" (`DEFAULT_TEXT_SCALE = 1.3` en `preferences.ts`).
+- **Tipografía del historial:** pref `localwhisper.transcriptFont` (`sans`/`mono`) → `body[data-font]` → variable CSS `--transcript-font` (usada en el texto de las transcripciones en `Home.tsx`). Aplicada en `App.tsx` al arrancar; Settings actualiza el atributo al cambiar.
+- **Sonidos** (Ajustes → General, `localwhisper.sounds`, on por defecto): "pop" al empezar/parar grabación, sintetizado con Web Audio en `src/lib/sounds.ts` (sin assets), disparado desde `useRecorder`.
 
 ## Diccionario
 

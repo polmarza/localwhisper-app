@@ -21,10 +21,15 @@ import { addInstalledTier, getInstalledTiers } from "../state/onboarding";
 import { downloadWhisperModel, type ProgressEvent } from "../lib/tauri";
 import {
   getAutopaste,
+  getSounds,
   getStoreLocal,
+  getTranscriptFont,
   setAutopaste,
+  setSounds,
   setStoreLocal,
+  setTranscriptFont,
   TEXT_SCALES,
+  type TranscriptFont,
 } from "../state/preferences";
 import {
   THEMES,
@@ -277,6 +282,8 @@ export function SettingsScreen({
   // on the next dictation).
   const [autopaste, setAutopasteState] = useState(() => getAutopaste());
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
+  const [sounds, setSoundsState] = useState(() => getSounds());
+  const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -285,6 +292,15 @@ export function SettingsScreen({
   const persistStoreLocal = (v: boolean) => {
     setStoreLocalState(v);
     setStoreLocal(v);
+  };
+  const persistSounds = (v: boolean) => {
+    setSoundsState(v);
+    setSounds(v);
+  };
+  const persistFont = (v: TranscriptFont) => {
+    setFontState(v);
+    setTranscriptFont(v);
+    document.body.setAttribute("data-font", v);
   };
 
   const [installedTiers, setInstalledTiers] = useState<string[]>(() =>
@@ -476,11 +492,12 @@ export function SettingsScreen({
                 hint="Local Whisper estará disponible nada más arrancar tu Mac."
                 preview={<Toggle on={false} onChange={() => {}} />}
               />
-              <ComingSoonRow
+              <Row
                 label="Sonidos"
                 hint="Reproduce un ‘pop’ al empezar y terminar la grabación."
-                preview={<Toggle on={false} onChange={() => {}} />}
-              />
+              >
+                <Toggle on={sounds} onChange={persistSounds} />
+              </Row>
               <Row
                 label="Pegar automáticamente"
                 hint="Inserta el texto en la app activa al terminar de transcribir."
@@ -575,6 +592,46 @@ export function SettingsScreen({
                           Aa
                         </span>
                         <span style={{ fontSize: 10.5, opacity: 0.8 }}>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Row>
+              <Row
+                label="Tipografía del historial"
+                hint="Cómo se lee el texto de tus transcripciones."
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    gap: 4,
+                    padding: 4,
+                    background: "var(--sidebar-2)",
+                    borderRadius: 8,
+                  }}
+                >
+                  {(["sans", "mono"] as TranscriptFont[]).map((f) => {
+                    const active = font === f;
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => persistFont(f)}
+                        style={{
+                          height: 30,
+                          padding: "0 16px",
+                          border: 0,
+                          background: active ? "var(--surface)" : "transparent",
+                          color: active ? "var(--ink)" : "var(--ink-3)",
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontFamily:
+                            f === "mono" ? "'JetBrains Mono', monospace" : "inherit",
+                          boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+                        }}
+                      >
+                        {f === "sans" ? "Sans" : "Mono"}
                       </button>
                     );
                   })}

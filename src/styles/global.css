@@ -68,6 +68,14 @@
   --radius-sm: 10px;
   --radius-xs: 6px;
   --content-max: 1040px;
+
+  /* Font used to render transcription/history text. Switchable in
+     Ajustes → Personalización via body[data-font]. */
+  --transcript-font: "DM Sans", -apple-system, system-ui, sans-serif;
+}
+
+body[data-font="mono"] {
+  --transcript-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* Arena Light — warm cream with terracotta accent. */

@@ -297,6 +297,7 @@ function TranscriptItem({
             fontSize: 14.5,
             lineHeight: 1.55,
             color: "var(--ink)",
+            fontFamily: "var(--transcript-font)",
             textWrap: "pretty",
             whiteSpace: "pre-wrap",
             userSelect: "text",

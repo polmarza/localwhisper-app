@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { transcribeAudio } from "../lib/tauri";
-import { getVadStreaming } from "../state/preferences";
+import { getSounds, getVadStreaming } from "../state/preferences";
+import { playStartSound, playStopSound } from "../lib/sounds";
 
 // 16 kHz mono f32 — what whisper.cpp expects.
 const TARGET_SAMPLE_RATE = 16_000;
@@ -200,6 +201,8 @@ export function useRecorder(opts: {
       return;
     }
 
+    if (getSounds()) playStartSound();
+
     const processor = ctx.createScriptProcessor(BUFFER_SIZE, 1, 1);
     processorRef.current = processor;
     chunksRef.current = [];
@@ -331,6 +334,7 @@ export function useRecorder(opts: {
 
   const stop = useCallback(async () => {
     if (status !== "recording") return;
+    if (getSounds()) playStopSound();
     const ctx = audioCtxRef.current;
     const chunks = chunksRef.current;
     const startTs = startTsRef.current;
