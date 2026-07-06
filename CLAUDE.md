@@ -38,6 +38,14 @@ El modelo se descarga una vez y queda en el disco local del usuario. La URL de R
 
 Si en una actualización cambia el nombre del archivo, los usuarios antiguos **no se ven afectados** (tienen el archivo en disco y la ruta guardada en localStorage). El único efecto cosmético sería que `tierForFile()` ya no reconocería el nombre antiguo y mostraría "—" en lugar del nombre del tier. Solución: añadir el nombre anterior como alias en `tierForFile()` en `tiers.ts`.
 
+## Rendimiento de transcripción
+
+Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los tiers Equilibrada/Máxima. La latencia se optimiza por otras vías:
+
+- **Contexto Whisper cacheado** en `src-tauri/src/lib.rs` (`WhisperCache` en el estado de Tauri). El modelo (0,5–0,8 GB) se carga de disco **una vez por modelo**, no en cada dictado. Antes se releía cada vez → era la causa principal del "congelón al parar".
+- **Todos los núcleos:** `set_n_threads(available_parallelism)` en lugar del default de 4.
+- **Transcripción en directo (VAD streaming):** toggle opcional en Ajustes → General (pref `localwhisper.vadStreaming`, **off por defecto**). Implementado en `src/hooks/useRecorder.ts`: VAD por energía (RMS) que trocea el audio por silencios y transcribe cada segmento en una cola secuencial *mientras* el usuario habla, así al parar solo queda la cola final. Ensambla el texto y lo pega una vez al terminar (no incremental). Tunables al inicio del archivo (`VAD_RMS_THRESHOLD`, `VAD_SILENCE_HANGOVER_MS`, etc.).
+
 ## Temas
 - 3 temas × 2 modos: `arena`, `pizarra`, `bosque` en `light` y `dark`
 - CSS aplicado vía `body[data-palette="${id}-${mode}"]`
