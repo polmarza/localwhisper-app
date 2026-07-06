@@ -467,7 +467,7 @@ export function SettingsScreen({
           </nav>
         </Card>
 
-        <div className="scroll" style={{ overflowY: "auto" }}>
+        <div className="scroll" style={{ overflowY: "auto", minWidth: 0 }}>
           {section === "general" && (
             <Card padding={0}>
               <SectionHead title="General" />
@@ -580,11 +580,36 @@ export function SettingsScreen({
                   })}
                 </div>
               </Row>
-              <Row
-                label="Tema"
-                hint="Cambia la paleta de colores de la aplicación. El cambio se aplica al instante."
+              <div
+                style={{
+                  padding: "16px 22px",
+                  borderBottom: "1px solid var(--line-2)",
+                  minWidth: 0,
+                }}
               >
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>
+                  Tema
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    marginTop: 3,
+                    lineHeight: 1.5,
+                    maxWidth: 480,
+                  }}
+                >
+                  Cambia la paleta de colores de la aplicación. El cambio se
+                  aplica al instante.
+                </div>
+                <div
+                  style={{
+                    marginTop: 14,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                    gap: 10,
+                  }}
+                >
                   {THEMES.map((t) => {
                     const active = theme === t.id;
                     const bg = t.preview[mode].bg;
@@ -602,7 +627,6 @@ export function SettingsScreen({
                           alignItems: "stretch",
                           gap: 8,
                           padding: 0,
-                          width: 92,
                           borderRadius: 10,
                           border: `2px solid ${
                             active ? "var(--accent)" : "var(--line)"
@@ -676,7 +700,7 @@ export function SettingsScreen({
                     );
                   })}
                 </div>
-              </Row>
+              </div>
             </Card>
           )}
 
