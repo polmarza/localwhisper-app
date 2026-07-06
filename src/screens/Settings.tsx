@@ -11,7 +11,7 @@ import {
   IconLock,
   IconShield,
 } from "../components/Icons";
-import { Btn, Card, Kbd, NavItem, Pill, Waveform, inputStyle } from "../components/Ui";
+import { Btn, Card, Kbd, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
 import {
   listAllTranscriptions,
   listDictionaryEntries,
@@ -488,7 +488,7 @@ export function SettingsScreen({
                 label="Tema"
                 hint="Cambia la paleta de colores de la aplicación. El cambio se aplica al instante."
               >
-                <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {THEMES.map((t) => {
                     const active = theme === t.id;
                     const bg = t.preview[mode].bg;
@@ -536,6 +536,16 @@ export function SettingsScreen({
                               boxShadow: "0 0 0 2px rgba(0,0,0,.04)",
                             }}
                           />
+                          {isPremiumTheme(t.id) && (
+                            <ProTag
+                              style={{
+                                position: "absolute",
+                                top: 6,
+                                left: 6,
+                                background: "rgba(255,255,255,.85)",
+                              }}
+                            />
+                          )}
                           {locked && (
                             <span
                               style={{

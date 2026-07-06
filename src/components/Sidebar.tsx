@@ -6,7 +6,7 @@ import {
   IconHelp,
   IconHome,
 } from "./Icons";
-import { NavItem, Waveform } from "./Ui";
+import { NavItem, ProTag, Waveform } from "./Ui";
 import type { Screen } from "../App";
 import {
   DEFAULT_SIDEBAR_WIDTH,
@@ -115,7 +115,7 @@ export function Sidebar({
           icon={<IconChart size={16} />}
           label="Estadísticas"
           active={active === "insights"}
-          badge={insightsLocked ? "🔒" : undefined}
+          badge={<ProTag />}
           onClick={() =>
             insightsLocked ? onLockedInsights?.() : onNavigate("insights")
           }

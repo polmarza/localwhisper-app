@@ -90,14 +90,18 @@ export const TEXT_SCALES: Array<{ value: number; label: string }> = [
 
 const VALID_SCALES = new Set(TEXT_SCALES.map((s) => s.value));
 
+// "Muy grande" by default — the app is a dictation tool people glance at from a
+// distance, and the larger scale reads much better out of the box.
+const DEFAULT_TEXT_SCALE = 1.3;
+
 export function getTextScale(): number {
   try {
     const raw = localStorage.getItem(KEY_TEXT_SCALE);
-    if (!raw) return 1.0;
+    if (!raw) return DEFAULT_TEXT_SCALE;
     const n = parseFloat(raw);
-    return VALID_SCALES.has(n) ? n : 1.0;
+    return VALID_SCALES.has(n) ? n : DEFAULT_TEXT_SCALE;
   } catch {
-    return 1.0;
+    return DEFAULT_TEXT_SCALE;
   }
 }
 
