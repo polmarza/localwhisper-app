@@ -284,23 +284,27 @@ function Dashboard({
     }
   };
 
-  const { status, elapsedSec, toggle } = useRecorder({
-    modelFile,
-    language,
-    deviceId: micDeviceId,
-    onResult,
-    onError: setLastError,
-  });
-
   // License model: recording is ALWAYS free and never gated. The license only
-  // unlocks premium extras — the Estadísticas screen and the arena/bosque
-  // themes. Everyone gets premium during the 14-day trial; after that it needs
-  // an active key. A persistent banner keeps the trial/upsell visible.
+  // unlocks premium extras — the Estadísticas screen, the arena/bosque themes,
+  // and live (VAD) transcription. Everyone gets premium during the 14-day
+  // trial; after that it needs an active key. A persistent banner keeps the
+  // trial/upsell visible.
   const license = useLicense();
   const [licenseModalOpen, setLicenseModalOpen] = useState(false);
   // Until the license state has loaded we treat the user as non-premium so we
   // never briefly flash premium-only surfaces to a lapsed user.
   const premium = license.state ? hasPremium(license.state) : false;
+
+  const { status, elapsedSec, toggle } = useRecorder({
+    modelFile,
+    language,
+    deviceId: micDeviceId,
+    // Live (VAD) transcription is a premium extra — a lapsed user falls back to
+    // the classic transcribe-on-stop path even if the pref is still on.
+    streamingAllowed: premium,
+    onResult,
+    onError: setLastError,
+  });
 
   // If premium lapses while a premium theme is selected, fall the user back to
   // the free theme. Gated on `license.state` being loaded so we never clobber a

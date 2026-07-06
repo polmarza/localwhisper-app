@@ -493,9 +493,20 @@ export function SettingsScreen({
               </Row>
               <Row
                 label="Transcripción en directo"
-                hint="Transcribe mientras hablas, troceando por silencios, para que al parar apenas haya espera. Ideal para dictados largos."
+                hint="Transcribe mientras hablas, troceando por silencios, para que al parar apenas haya espera. Ideal para dictados largos. Función premium."
               >
-                <Toggle on={vadStreaming} onChange={persistVadStreaming} />
+                {premium ? (
+                  <Toggle on={vadStreaming} onChange={persistVadStreaming} />
+                ) : (
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    icon={<IconLock size={13} />}
+                    onClick={() => onActivateLicense?.()}
+                  >
+                    Premium
+                  </Btn>
+                )}
               </Row>
               <Row
                 label="Tema"

@@ -44,7 +44,7 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 
 - **Contexto Whisper cacheado** en `src-tauri/src/lib.rs` (`WhisperCache` en el estado de Tauri). El modelo (0,5–0,8 GB) se carga de disco **una vez por modelo**, no en cada dictado. Antes se releía cada vez → era la causa principal del "congelón al parar".
 - **Todos los núcleos:** `set_n_threads(available_parallelism)` en lugar del default de 4.
-- **Transcripción en directo (VAD streaming):** toggle opcional en Ajustes → General (pref `localwhisper.vadStreaming`, **off por defecto**). Implementado en `src/hooks/useRecorder.ts`: VAD por energía (RMS) que trocea el audio por silencios y transcribe cada segmento en una cola secuencial *mientras* el usuario habla, así al parar solo queda la cola final. Ensambla el texto y lo pega una vez al terminar (no incremental). Tunables al inicio del archivo (`VAD_RMS_THRESHOLD`, `VAD_SILENCE_HANGOVER_MS`, etc.).
+- **Transcripción en directo (VAD streaming):** toggle opcional en Ajustes → General (pref `localwhisper.vadStreaming`, **off por defecto**). **Es función premium** — el toggle sale con candado si no hay premium, y `useRecorder` recibe `streamingAllowed={premium}` para no usarlo aunque la pref quede en `true` tras caducar el trial. Implementado en `src/hooks/useRecorder.ts`: VAD por energía (RMS) que trocea el audio por silencios y transcribe cada segmento en una cola secuencial *mientras* el usuario habla, así al parar solo queda la cola final. Ensambla el texto y lo pega una vez al terminar (no incremental). Tunables al inicio del archivo (`VAD_RMS_THRESHOLD`, `VAD_SILENCE_HANGOVER_MS`, etc.).
 
 ## Temas
 - 3 temas × 2 modos: `arena`, `pizarra`, `bosque` en `light` y `dark`
@@ -62,7 +62,7 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 
 ### Modelo
 - **La grabación/transcripción es SIEMPRE gratis e ilimitada** — nunca se bloquea, ni durante ni después del trial. La licencia solo desbloquea *extras premium*.
-- **Funciones premium:** la pantalla de **Estadísticas** (`insights`) y los **temas `arena` y `bosque`**. El tema `pizarra` es el gratuito por defecto.
+- **Funciones premium:** la pantalla de **Estadísticas** (`insights`), los **temas `arena` y `bosque`**, y la **transcripción en directo (VAD streaming)**. El tema `pizarra` es el gratuito por defecto.
 - **14 días de trial premium:** durante los primeros 14 días todos tienen las funciones premium. Al caducar sin clave válida → se bloquean Estadísticas y arena/bosque (fallback automático a `pizarra`), pero la grabación sigue intacta.
 - **Pago único lifetime** vía Lemon Squeezy
 - **3 activaciones por licencia** (configurado en el dashboard de LS)
