@@ -12,6 +12,8 @@ export type Theme = {
   id: ThemeId;
   label: string;
   accent: string; // same accent in both modes
+  /** Requires an active license / trial. Pizarra is the free default. */
+  premium?: boolean;
   preview: {
     light: { bg: string };
     dark: { bg: string };
@@ -19,15 +21,6 @@ export type Theme = {
 };
 
 export const THEMES: Theme[] = [
-  {
-    id: "arena",
-    label: "Arena",
-    accent: "#c0651e",
-    preview: {
-      light: { bg: "#fbf8f3" },
-      dark: { bg: "#1f1d1a" },
-    },
-  },
   {
     id: "pizarra",
     label: "Pizarra",
@@ -38,9 +31,20 @@ export const THEMES: Theme[] = [
     },
   },
   {
+    id: "arena",
+    label: "Arena",
+    accent: "#c0651e",
+    premium: true,
+    preview: {
+      light: { bg: "#fbf8f3" },
+      dark: { bg: "#1f1d1a" },
+    },
+  },
+  {
     id: "bosque",
     label: "Bosque",
     accent: "#4f7d50",
+    premium: true,
     preview: {
       light: { bg: "#f3f5f0" },
       dark: { bg: "#161a16" },
@@ -48,7 +52,9 @@ export const THEMES: Theme[] = [
   },
 ];
 
-const DEFAULT_THEME: ThemeId = "arena";
+// Pizarra is the only theme available without a license — it's the free
+// default. Arena and bosque are premium (unlocked during trial / with a key).
+const DEFAULT_THEME: ThemeId = "pizarra";
 const DEFAULT_MODE: ThemeMode = "light";
 
 function isValidId(id: string): id is ThemeId {
@@ -104,3 +110,11 @@ export function findTheme(id: ThemeId): Theme {
   if (!t) throw new Error(`Unknown theme ${id}`);
   return t;
 }
+
+/** True if the theme requires a license (everything except pizarra). */
+export function isPremiumTheme(id: ThemeId): boolean {
+  return THEMES.find((t) => t.id === id)?.premium === true;
+}
+
+/** The free theme non-premium users fall back to. */
+export const FREE_THEME: ThemeId = "pizarra";

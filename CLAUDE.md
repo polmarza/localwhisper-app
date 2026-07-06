@@ -53,10 +53,17 @@ Si en una actualización cambia el nombre del archivo, los usuarios antiguos **n
 ## Sistema de licencias
 
 ### Modelo
-- **14 días de trial completo** (sin limitar funciones)
-- A los 14 días sin clave válida → se bloquea la grabación (resto de la app sigue accesible)
+- **La grabación/transcripción es SIEMPRE gratis e ilimitada** — nunca se bloquea, ni durante ni después del trial. La licencia solo desbloquea *extras premium*.
+- **Funciones premium:** la pantalla de **Estadísticas** (`insights`) y los **temas `arena` y `bosque`**. El tema `pizarra` es el gratuito por defecto.
+- **14 días de trial premium:** durante los primeros 14 días todos tienen las funciones premium. Al caducar sin clave válida → se bloquean Estadísticas y arena/bosque (fallback automático a `pizarra`), pero la grabación sigue intacta.
 - **Pago único lifetime** vía Lemon Squeezy
 - **3 activaciones por licencia** (configurado en el dashboard de LS)
+
+Implementación del gating (todo en frontend; Rust solo calcula `status`):
+- `hasPremium(state)` en `src/state/license.ts` — antes era `canRecord`; la grabación ya no se comprueba.
+- `isPremiumTheme(id)` / `FREE_THEME` en `src/state/theme.ts`.
+- `App.tsx` — bloqueo de Estadísticas (`<PremiumLocked>`), candado en el nav (`Sidebar`) y auto-downgrade de tema al caducar el premium.
+- `Settings.tsx` — candado en el selector de temas premium.
 
 ### Fuente de verdad
 El estado vive en `AppData/license.json` — **NO en localStorage**. Esto es deliberado: borrar la caché de WebKit no debe resetear el trial ni perder la clave.

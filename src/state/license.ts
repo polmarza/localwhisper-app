@@ -62,8 +62,13 @@ export function trialDaysLeft(state: LicenseState): number {
   return Math.ceil(TRIAL_DAYS - elapsedDays);
 }
 
-/** True when the user can hit Record. Anything else blocks. */
-export function canRecord(state: LicenseState): boolean {
+/**
+ * True when the user has access to premium features (Estadísticas + the
+ * arena/bosque themes). Recording itself is ALWAYS free and never gated — the
+ * license only unlocks the premium extras. During the 14-day trial everyone
+ * gets premium; after that it requires an active key.
+ */
+export function hasPremium(state: LicenseState): boolean {
   if (state.status === "active") return true;
   if (state.status === "trial") return trialDaysLeft(state) > 0;
   return false;

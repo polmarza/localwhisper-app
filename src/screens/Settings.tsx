@@ -25,10 +25,16 @@ import {
   setStoreLocal,
   TEXT_SCALES,
 } from "../state/preferences";
-import { THEMES, type ThemeId, type ThemeMode } from "../state/theme";
+import {
+  THEMES,
+  isPremiumTheme,
+  type ThemeId,
+  type ThemeMode,
+} from "../state/theme";
 import { TIERS, findTier, tierForFile } from "../state/tiers";
 import {
   PURCHASE_URL,
+  hasPremium,
   maskKey,
   trialDaysLeft,
   type LicenseState,
@@ -259,6 +265,9 @@ export function SettingsScreen({
 } = {}) {
   const activeTierId = activeModelFile ? tierForFile(activeModelFile) : null;
   const activeTier = activeTierId ? findTier(activeTierId) : null;
+  // Premium (trial or active key) unlocks the arena/bosque themes. Pizarra is
+  // always free. Non-premium clicks on a locked theme open the license modal.
+  const premium = licenseState ? hasPremium(licenseState) : false;
   const [section, setSection] = useState<SettingsSection>(initialSection);
   // Persisted prefs are read once on mount; the setters below update local
   // state (for the UI) and write to localStorage (for the recorder to read
@@ -483,11 +492,14 @@ export function SettingsScreen({
                   {THEMES.map((t) => {
                     const active = theme === t.id;
                     const bg = t.preview[mode].bg;
+                    const locked = isPremiumTheme(t.id) && !premium;
                     return (
                       <button
                         key={t.id}
-                        onClick={() => onThemeChange?.(t.id)}
-                        title={t.label}
+                        onClick={() =>
+                          locked ? onActivateLicense?.() : onThemeChange?.(t.id)
+                        }
+                        title={locked ? `${t.label} · función premium` : t.label}
                         style={{
                           display: "flex",
                           flexDirection: "column",
@@ -524,6 +536,21 @@ export function SettingsScreen({
                               boxShadow: "0 0 0 2px rgba(0,0,0,.04)",
                             }}
                           />
+                          {locked && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "rgba(0,0,0,.28)",
+                                color: "#fff",
+                              }}
+                            >
+                              <IconLock size={15} />
+                            </span>
+                          )}
                         </div>
                         <div
                           style={{

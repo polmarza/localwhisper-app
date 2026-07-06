@@ -40,13 +40,16 @@ import {
   applyTheme,
   getMode,
   getTheme,
+  isPremiumTheme,
   setMode,
   setTheme,
+  FREE_THEME,
   type ThemeId,
   type ThemeMode,
 } from "./state/theme";
 import { findTier, tierForFile } from "./state/tiers";
-import { canRecord, shouldShowLicenseBanner } from "./state/license";
+import { hasPremium, shouldShowLicenseBanner } from "./state/license";
+import { PremiumLocked } from "./components/PremiumLocked";
 import { useLicense } from "./hooks/useLicense";
 import type { SettingsSection } from "./screens/Settings";
 
@@ -289,13 +292,24 @@ function Dashboard({
     onError: setLastError,
   });
 
-  // License gate. Soft-block model: when the user can't record we open the
-  // activation modal *only when they actively try to record*. The rest of the
-  // app (history, settings, export) stays usable so the user retains control
-  // over their data and can take their time deciding. A persistent banner
-  // above the content keeps the situation visible.
+  // License model: recording is ALWAYS free and never gated. The license only
+  // unlocks premium extras — the Estadísticas screen and the arena/bosque
+  // themes. Everyone gets premium during the 14-day trial; after that it needs
+  // an active key. A persistent banner keeps the trial/upsell visible.
   const license = useLicense();
   const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  // Until the license state has loaded we treat the user as non-premium so we
+  // never briefly flash premium-only surfaces to a lapsed user.
+  const premium = license.state ? hasPremium(license.state) : false;
+
+  // If premium lapses while a premium theme is selected, fall the user back to
+  // the free theme. Gated on `license.state` being loaded so we never clobber a
+  // paying user's saved theme during the initial async load.
+  useEffect(() => {
+    if (license.state && !hasPremium(license.state) && isPremiumTheme(theme)) {
+      onThemeChange(FREE_THEME);
+    }
+  }, [license.state, theme, onThemeChange]);
 
   // In-app interactive tutorial. Shown automatically the first time the
   // Dashboard mounts (right after onboarding completes). The "intercept" ref
@@ -324,13 +338,10 @@ function Dashboard({
     return () => window.removeEventListener("replay-tutorial", handler);
   }, []);
 
+  // Recording is free for everyone — no license gate here anymore.
   const guardedToggle = useCallback(() => {
-    if (license.state && !canRecord(license.state)) {
-      setLicenseModalOpen(true);
-      return;
-    }
     toggle();
-  }, [license.state, toggle]);
+  }, [toggle]);
 
   // Global shortcut (⌥ Space) fires a "toggle-recording" event from Rust.
   // We pin the latest `toggle` in a ref so the listener (subscribed exactly
@@ -394,6 +405,8 @@ function Dashboard({
             onNavigate={onNavigate}
             width={sidebarWidth}
             onWidthChange={onSidebarWidthChange}
+            insightsLocked={!premium}
+            onLockedInsights={() => setLicenseModalOpen(true)}
           />
         )}
         <div
@@ -428,9 +441,16 @@ function Dashboard({
                 onNavigate={onNavigate}
               />
             )}
-            {screen === "insights" && (
-              <InsightsScreen refreshKey={historyVersion} />
-            )}
+            {screen === "insights" &&
+              (premium ? (
+                <InsightsScreen refreshKey={historyVersion} />
+              ) : (
+                <PremiumLocked
+                  title="Estadísticas es una función premium"
+                  blurb="Consulta tus palabras dictadas, rachas y tiempo ahorrado con una licencia de Local Whisper. La transcripción sigue siendo gratis e ilimitada."
+                  onActivate={() => setLicenseModalOpen(true)}
+                />
+              ))}
             {screen === "dictionary" && <DictionaryScreen />}
             {screen === "help" && <HelpScreen />}
             {screen === "settings" && (
