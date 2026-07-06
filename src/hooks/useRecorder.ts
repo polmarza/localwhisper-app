@@ -134,9 +134,17 @@ export function useRecorder(opts: {
     try {
       const audioConstraints: MediaTrackConstraints = {
         channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        // Voice processing (echo cancellation / noise suppression / AGC) is
+        // deliberately OFF. On macOS, holding an always-warm mic *with* voice
+        // processing puts the system into "call" mode and ducks all other
+        // audio to ~half volume (and keeps the orange mic dot lit). Whisper
+        // dictation doesn't need echo cancellation, so we open a plain input
+        // instead — this keeps the mic pre-warmed (no re-acquire delay) without
+        // the ducking. If dictation quality suffers in noisy rooms we can
+        // revisit (e.g. release the mic on idle instead).
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
       };
       if (deviceId) {
         // exact forces the picked device; the browser errors out if it's gone
