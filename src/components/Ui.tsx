@@ -164,8 +164,8 @@ export function ProTag({ style }: { style?: CSSProperties }) {
         textTransform: "uppercase",
         padding: "1px 5px",
         borderRadius: 4,
-        background: "var(--accent-soft)",
-        color: "var(--accent)",
+        background: "var(--accent)",
+        color: "var(--accent-ink)",
         lineHeight: 1.5,
         ...style,
       }}

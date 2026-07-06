@@ -715,12 +715,7 @@ export function SettingsScreen({
                           />
                           {isPremiumTheme(t.id) && (
                             <ProTag
-                              style={{
-                                position: "absolute",
-                                top: 6,
-                                left: 6,
-                                background: "rgba(255,255,255,.85)",
-                              }}
+                              style={{ position: "absolute", top: 6, left: 6 }}
                             />
                           )}
                           {locked && (

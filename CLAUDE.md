@@ -16,9 +16,9 @@ URL R2 directa (de fallback): `https://pub-8d451576d7ae4f518721218aafa5c847.r2.d
 Los tres modelos actuales:
 | Tier | Archivo | Tamaño |
 |---|---|---|
-| Ligera | `ggml-small-q5_1.bin` | ~181 MB |
-| Equilibrada | `ggml-large-v3-turbo-q5_0.bin` | ~548 MB |
-| Máxima | `ggml-large-v3-turbo-q8_0.bin` | ~834 MB |
+| Ligero | `ggml-small-q5_1.bin` | ~181 MB |
+| Equilibrado | `ggml-large-v3-turbo-q5_0.bin` | ~548 MB |
+| Máximo | `ggml-large-v3-turbo-q8_0.bin` | ~834 MB |
 
 Las URLs y nombres de archivo están definidos en `src/state/tiers.ts`.
 
