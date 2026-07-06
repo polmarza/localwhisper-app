@@ -259,6 +259,11 @@ async fn transcribe_audio(
     model_file: String,
     // BCP-47 language hint ("es", "en", or "auto").
     language: Option<String>,
+    // Optional context from the previous segment (VAD streaming), fed to
+    // whisper as its initial prompt so it continues naturally — keeps
+    // punctuation/casing consistent instead of treating each segment as a fresh
+    // standalone sentence. `None` for normal whole-clip transcription.
+    prompt: Option<String>,
 ) -> Result<String, String> {
     if pcm_bytes.is_empty() {
         return Err("La grabación está vacía.".into());
@@ -365,6 +370,14 @@ async fn transcribe_audio(
             .map(|n| n.get() as i32)
             .unwrap_or(4);
         params.set_n_threads(n_threads);
+
+        // Continuity for VAD streaming: feed the tail of what we've transcribed
+        // so far as the initial prompt. set_initial_prompt panics on interior
+        // null bytes, so strip them first.
+        let clean_prompt = prompt.as_deref().map(str::trim).filter(|p| !p.is_empty());
+        if let Some(p) = clean_prompt {
+            params.set_initial_prompt(&p.replace('\0', " "));
+        }
 
         state
             .full(params, &padded)

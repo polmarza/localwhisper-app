@@ -12,7 +12,11 @@ const BUFFER_SIZE = 4096;
 // which is transcribed while the user keeps talking. Splitting on silence (not
 // on a fixed clock) means we never cut a word mid-way.
 const VAD_RMS_THRESHOLD = 0.01;
-const VAD_SILENCE_HANGOVER_MS = 600; // silence after speech that closes a segment
+// ~1 s of silence closes a segment. Kept high on purpose: short mid-sentence
+// hesitations shouldn't split a segment (each split becomes its own whisper
+// call, which whisper punctuates as a standalone sentence — a period at every
+// pause). At ~1 s we cut mostly on real end-of-sentence pauses.
+const VAD_SILENCE_HANGOVER_MS = 1000;
 const VAD_MIN_SEGMENT_MS = 1000; // don't auto-close segments shorter than this
 const VAD_MAX_SEGMENT_MS = 20_000; // force-close very long continuous speech
 
@@ -225,7 +229,11 @@ export function useRecorder(opts: {
           return;
         }
         busyRef.current = true;
-        transcribeAudio(next, modelFileRef.current, languageRef.current)
+        // Feed the tail of what we've transcribed so far as context so whisper
+        // continues the same sentence/flow instead of restarting punctuation.
+        const prior = partsRef.current.join(" ");
+        const prompt = prior ? prior.slice(-200) : undefined;
+        transcribeAudio(next, modelFileRef.current, languageRef.current, prompt)
           .then((text) => {
             const t = text.trim();
             if (t) partsRef.current.push(t);
