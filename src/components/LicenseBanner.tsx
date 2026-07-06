@@ -4,10 +4,13 @@ import {
   trialDaysLeft,
   type LicenseState,
 } from "../state/license";
+import { WEEKLY_WORD_CAP } from "../state/usage";
 import { openUrl } from "../lib/tauri";
 
 type Props = {
   state: LicenseState;
+  // Free-tier words left this week. Provided only for non-premium users.
+  remaining?: number;
   onActivate: () => void;
 };
 
@@ -18,23 +21,32 @@ type Tone = "info" | "accent" | "danger";
  * urgent the state is — the color reinforces the message:
  *
  *   - info    → trial, plenty of time left   (gris suave, mensaje informativo)
- *   - accent  → trial, last few days          (color de marca, urgencia leve)
- *   - danger  → expired or invalid            (rojo, grabación bloqueada)
+ *   - accent  → trial ending, or free tier with words left
+ *   - danger  → weekly quota exhausted / invalid licence
  */
-export function LicenseBanner({ state, onActivate }: Props) {
+export function LicenseBanner({ state, remaining, onActivate }: Props) {
+  const outOfWords = remaining !== undefined && remaining <= 0;
+
   const tone: Tone =
-    state.status === "expired" || state.status === "invalid"
+    state.status === "invalid" || outOfWords
       ? "danger"
-      : trialDaysLeft(state) <= COUNTDOWN_THRESHOLD
+      : state.status === "expired"
         ? "accent"
-        : "info";
+        : trialDaysLeft(state) <= COUNTDOWN_THRESHOLD
+          ? "accent"
+          : "info";
 
   const text = (() => {
-    if (state.status === "expired") {
-      return "Tu prueba ha terminado. Activa tu licencia para volver a grabar.";
-    }
     if (state.status === "invalid") {
-      return "Tu licencia ya no es válida. La grabación está bloqueada.";
+      return "Tu licencia ya no es válida.";
+    }
+    if (state.status === "expired") {
+      if (remaining !== undefined) {
+        return remaining > 0
+          ? `Plan gratuito: te quedan ${remaining} de ${WEEKLY_WORD_CAP} palabras esta semana.`
+          : `Has agotado tus ${WEEKLY_WORD_CAP} palabras gratis de esta semana. Actívate para dictar sin límite.`;
+      }
+      return "Tu prueba ha terminado.";
     }
     const days = Math.max(0, trialDaysLeft(state));
     if (days === 1) return "Te queda 1 día de prueba.";

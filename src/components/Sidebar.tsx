@@ -21,11 +21,15 @@ export function Sidebar({
   onNavigate,
   width = DEFAULT_SIDEBAR_WIDTH,
   onWidthChange,
+  insightsLocked = false,
+  onLockedInsights,
 }: {
   active: Screen;
   onNavigate: (s: Screen) => void;
   width?: number;
   onWidthChange?: (w: number) => void;
+  insightsLocked?: boolean;
+  onLockedInsights?: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
 
@@ -113,7 +117,10 @@ export function Sidebar({
           icon={<IconChart size={16} />}
           label="Estadísticas"
           active={active === "insights"}
-          onClick={() => onNavigate("insights")}
+          badge={insightsLocked ? "🔒" : undefined}
+          onClick={() =>
+            insightsLocked ? onLockedInsights?.() : onNavigate("insights")
+          }
         />
         <NavItem
           icon={<IconBook size={16} />}

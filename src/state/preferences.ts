@@ -4,6 +4,7 @@
 
 const KEY_AUTOPASTE = "localwhisper.autopaste";
 const KEY_STORE_LOCAL = "localwhisper.storeLocal";
+const KEY_VAD_STREAMING = "localwhisper.vadStreaming";
 const KEY_LANGUAGE = "localwhisper.language";
 const KEY_MIC_DEVICE = "localwhisper.micDeviceId";
 const KEY_TEXT_SCALE = "localwhisper.textScale";
@@ -32,6 +33,13 @@ export const setAutopaste = (v: boolean) => writeBool(KEY_AUTOPASTE, v);
 
 export const getStoreLocal = () => readBool(KEY_STORE_LOCAL, true);
 export const setStoreLocal = (v: boolean) => writeBool(KEY_STORE_LOCAL, v);
+
+// VAD streaming: transcribe while the user talks, splitting on silences,
+// instead of processing the whole clip after they stop. Off by default —
+// it's an optimisation the user opts into. Read fresh at each recording's
+// start, so toggling it in Settings takes effect on the next dictation.
+export const getVadStreaming = () => readBool(KEY_VAD_STREAMING, false);
+export const setVadStreaming = (v: boolean) => writeBool(KEY_VAD_STREAMING, v);
 
 // BCP-47 code ("es", "en", "ca", …) or "auto" to let whisper detect.
 // Default "auto" — works out of the box for users who dictate in their

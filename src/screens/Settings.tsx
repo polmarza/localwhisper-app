@@ -21,14 +21,22 @@ import { downloadWhisperModel, type ProgressEvent } from "../lib/tauri";
 import {
   getAutopaste,
   getStoreLocal,
+  getVadStreaming,
   setAutopaste,
   setStoreLocal,
+  setVadStreaming,
   TEXT_SCALES,
 } from "../state/preferences";
-import { THEMES, type ThemeId, type ThemeMode } from "../state/theme";
+import {
+  THEMES,
+  isPremiumTheme,
+  type ThemeId,
+  type ThemeMode,
+} from "../state/theme";
 import { TIERS, findTier, tierForFile } from "../state/tiers";
 import {
   PURCHASE_URL,
+  hasPremium,
   maskKey,
   trialDaysLeft,
   type LicenseState,
@@ -259,12 +267,16 @@ export function SettingsScreen({
 } = {}) {
   const activeTierId = activeModelFile ? tierForFile(activeModelFile) : null;
   const activeTier = activeTierId ? findTier(activeTierId) : null;
+  // Premium (trial or active key) unlocks the arena/bosque themes. Pizarra is
+  // always free. Non-premium clicks on a locked theme open the license modal.
+  const premium = licenseState ? hasPremium(licenseState) : false;
   const [section, setSection] = useState<SettingsSection>(initialSection);
   // Persisted prefs are read once on mount; the setters below update local
   // state (for the UI) and write to localStorage (for the recorder to read
   // on the next dictation).
   const [autopaste, setAutopasteState] = useState(() => getAutopaste());
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
+  const [vadStreaming, setVadStreamingState] = useState(() => getVadStreaming());
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -273,6 +285,10 @@ export function SettingsScreen({
   const persistStoreLocal = (v: boolean) => {
     setStoreLocalState(v);
     setStoreLocal(v);
+  };
+  const persistVadStreaming = (v: boolean) => {
+    setVadStreamingState(v);
+    setVadStreaming(v);
   };
 
   const [installedTiers, setInstalledTiers] = useState<string[]>(() =>
@@ -476,6 +492,23 @@ export function SettingsScreen({
                 <Toggle on={autopaste} onChange={persistAutopaste} />
               </Row>
               <Row
+                label="Transcripción en directo"
+                hint="Transcribe mientras hablas, troceando por silencios, para que al parar apenas haya espera. Ideal para dictados largos. Función premium."
+              >
+                {premium ? (
+                  <Toggle on={vadStreaming} onChange={persistVadStreaming} />
+                ) : (
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    icon={<IconLock size={13} />}
+                    onClick={() => onActivateLicense?.()}
+                  >
+                    Premium
+                  </Btn>
+                )}
+              </Row>
+              <Row
                 label="Tema"
                 hint="Cambia la paleta de colores de la aplicación. El cambio se aplica al instante."
               >
@@ -483,11 +516,14 @@ export function SettingsScreen({
                   {THEMES.map((t) => {
                     const active = theme === t.id;
                     const bg = t.preview[mode].bg;
+                    const locked = isPremiumTheme(t.id) && !premium;
                     return (
                       <button
                         key={t.id}
-                        onClick={() => onThemeChange?.(t.id)}
-                        title={t.label}
+                        onClick={() =>
+                          locked ? onActivateLicense?.() : onThemeChange?.(t.id)
+                        }
+                        title={locked ? `${t.label} · función premium` : t.label}
                         style={{
                           display: "flex",
                           flexDirection: "column",
@@ -524,6 +560,21 @@ export function SettingsScreen({
                               boxShadow: "0 0 0 2px rgba(0,0,0,.04)",
                             }}
                           />
+                          {locked && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "rgba(0,0,0,.28)",
+                                color: "#fff",
+                              }}
+                            >
+                              <IconLock size={15} />
+                            </span>
+                          )}
                         </div>
                         <div
                           style={{

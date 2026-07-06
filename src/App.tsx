@@ -40,14 +40,19 @@ import {
   applyTheme,
   getMode,
   getTheme,
+  isPremiumTheme,
   setMode,
   setTheme,
+  FREE_THEME,
   type ThemeId,
   type ThemeMode,
 } from "./state/theme";
 import { findTier, tierForFile } from "./state/tiers";
-import { canRecord, shouldShowLicenseBanner } from "./state/license";
+import { hasPremium, shouldShowLicenseBanner } from "./state/license";
+import { countWords, wordsRemaining } from "./state/usage";
+import { PremiumLocked } from "./components/PremiumLocked";
 import { useLicense } from "./hooks/useLicense";
+import { useUsage } from "./hooks/useUsage";
 import type { SettingsSection } from "./screens/Settings";
 
 export type Screen = "home" | "insights" | "dictionary" | "settings" | "help";
@@ -221,6 +226,14 @@ function Dashboard({
     setMicDeviceIdState(id);
   }, []);
 
+  // onResult and guardedToggle are created before license + usage are known.
+  // These refs let them read the latest values at call time without being
+  // recreated (which would leak stale global-shortcut listeners).
+  const premiumRef = useRef(false);
+  const addWordsRef = useRef<(n: number) => void>(() => {});
+  const statusRef = useRef<string>("idle");
+  const overQuotaRef = useRef(false);
+
   const onResult = useCallback((r: RecorderResult) => {
     setLastResult(r);
     setLastError(null);
@@ -234,6 +247,13 @@ function Dashboard({
       setTutorialCaptured(r.text);
       tutorialInterceptRef.current = false;
       return;
+    }
+
+    // Count words against the free-tier weekly quota. Premium (trial/licensed)
+    // is unlimited and never counted.
+    if (!premiumRef.current) {
+      const words = countWords(r.text);
+      if (words > 0) void addWordsRef.current(words);
     }
 
     // Both side-effects are gated by preferences read at the moment of the
@@ -281,21 +301,47 @@ function Dashboard({
     }
   };
 
+  // License model: recording is ALWAYS free and never gated. The license only
+  // unlocks premium extras — the Estadísticas screen, the arena/bosque themes,
+  // and live (VAD) transcription. Everyone gets premium during the 14-day
+  // trial; after that it needs an active key. A persistent banner keeps the
+  // trial/upsell visible.
+  const license = useLicense();
+  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  // Until the license state has loaded we treat the user as non-premium so we
+  // never briefly flash premium-only surfaces to a lapsed user.
+  const premium = license.state ? hasPremium(license.state) : false;
+
+  // Free-tier weekly word quota. Premium (trial/licensed) is unlimited; a free
+  // user who's used up the week's words is blocked from starting a new
+  // dictation until it resets or they buy a license.
+  const usage = useUsage();
+  const overQuota = !premium && !!usage.state && wordsRemaining(usage.state) <= 0;
+
+  premiumRef.current = premium;
+  addWordsRef.current = usage.addWords;
+  overQuotaRef.current = overQuota;
+
   const { status, elapsedSec, toggle } = useRecorder({
     modelFile,
     language,
     deviceId: micDeviceId,
+    // Live (VAD) transcription is a premium extra — a lapsed user falls back to
+    // the classic transcribe-on-stop path even if the pref is still on.
+    streamingAllowed: premium,
     onResult,
     onError: setLastError,
   });
+  statusRef.current = status;
 
-  // License gate. Soft-block model: when the user can't record we open the
-  // activation modal *only when they actively try to record*. The rest of the
-  // app (history, settings, export) stays usable so the user retains control
-  // over their data and can take their time deciding. A persistent banner
-  // above the content keeps the situation visible.
-  const license = useLicense();
-  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
+  // If premium lapses while a premium theme is selected, fall the user back to
+  // the free theme. Gated on `license.state` being loaded so we never clobber a
+  // paying user's saved theme during the initial async load.
+  useEffect(() => {
+    if (license.state && !hasPremium(license.state) && isPremiumTheme(theme)) {
+      onThemeChange(FREE_THEME);
+    }
+  }, [license.state, theme, onThemeChange]);
 
   // In-app interactive tutorial. Shown automatically the first time the
   // Dashboard mounts (right after onboarding completes). The "intercept" ref
@@ -324,13 +370,16 @@ function Dashboard({
     return () => window.removeEventListener("replay-tutorial", handler);
   }, []);
 
+  // Starting a dictation is blocked only when a free user has exhausted their
+  // weekly word quota — then we surface the upsell modal. Stopping an in-flight
+  // recording is always allowed.
   const guardedToggle = useCallback(() => {
-    if (license.state && !canRecord(license.state)) {
+    if (statusRef.current !== "recording" && overQuotaRef.current) {
       setLicenseModalOpen(true);
       return;
     }
     toggle();
-  }, [license.state, toggle]);
+  }, [toggle]);
 
   // Global shortcut (⌥ Space) fires a "toggle-recording" event from Rust.
   // We pin the latest `toggle` in a ref so the listener (subscribed exactly
@@ -394,6 +443,8 @@ function Dashboard({
             onNavigate={onNavigate}
             width={sidebarWidth}
             onWidthChange={onSidebarWidthChange}
+            insightsLocked={!premium}
+            onLockedInsights={() => setLicenseModalOpen(true)}
           />
         )}
         <div
@@ -416,6 +467,11 @@ function Dashboard({
           {license.state && shouldShowLicenseBanner(license.state) && (
             <LicenseBanner
               state={license.state}
+              remaining={
+                !premium && usage.state
+                  ? wordsRemaining(usage.state)
+                  : undefined
+              }
               onActivate={() => setLicenseModalOpen(true)}
             />
           )}
@@ -428,9 +484,16 @@ function Dashboard({
                 onNavigate={onNavigate}
               />
             )}
-            {screen === "insights" && (
-              <InsightsScreen refreshKey={historyVersion} />
-            )}
+            {screen === "insights" &&
+              (premium ? (
+                <InsightsScreen refreshKey={historyVersion} />
+              ) : (
+                <PremiumLocked
+                  title="Estadísticas es una función premium"
+                  blurb="Consulta tus palabras dictadas, rachas y tiempo ahorrado con una licencia de Local Whisper. La transcripción sigue siendo gratis e ilimitada."
+                  onActivate={() => setLicenseModalOpen(true)}
+                />
+              ))}
             {screen === "dictionary" && <DictionaryScreen />}
             {screen === "help" && <HelpScreen />}
             {screen === "settings" && (

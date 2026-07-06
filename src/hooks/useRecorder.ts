@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { transcribeAudio } from "../lib/tauri";
+import { getVadStreaming } from "../state/preferences";
 
 // 16 kHz mono f32 — what whisper.cpp expects.
 const TARGET_SAMPLE_RATE = 16_000;
 const BUFFER_SIZE = 4096;
+
+// --- VAD streaming tunables ------------------------------------------------
+// Energy-based voice activity detection. A frame whose RMS is above the
+// threshold counts as speech; a run of silence after speech closes a segment,
+// which is transcribed while the user keeps talking. Splitting on silence (not
+// on a fixed clock) means we never cut a word mid-way.
+const VAD_RMS_THRESHOLD = 0.01;
+const VAD_SILENCE_HANGOVER_MS = 600; // silence after speech that closes a segment
+const VAD_MIN_SEGMENT_MS = 1000; // don't auto-close segments shorter than this
+const VAD_MAX_SEGMENT_MS = 20_000; // force-close very long continuous speech
 
 type Status = "idle" | "preparing" | "recording" | "transcribing";
 
@@ -18,6 +29,10 @@ export function useRecorder(opts: {
   language?: string;
   // MediaDeviceInfo.deviceId, or null/undefined to use the system default.
   deviceId?: string | null;
+  // Whether live (VAD) transcription is allowed — it's a premium feature, so a
+  // lapsed user falls back to the classic transcribe-on-stop path even if the
+  // pref is still on. Defaults to true.
+  streamingAllowed?: boolean;
   onResult: (r: RecorderResult) => void;
   onError?: (err: string) => void;
 }) {
@@ -25,6 +40,7 @@ export function useRecorder(opts: {
     modelFile,
     language = "auto",
     deviceId = null,
+    streamingAllowed = true,
     onResult,
     onError,
   } = opts;
@@ -45,6 +61,31 @@ export function useRecorder(opts: {
   const startTsRef = useRef<number>(0);
   const tickRef = useRef<number | null>(null);
   const primedRef = useRef(false);
+
+  // Latest model/language, mirrored into refs so the streaming worker (created
+  // once per recording) always calls the command with current values without
+  // needing them in a dependency array.
+  const modelFileRef = useRef(modelFile);
+  modelFileRef.current = modelFile;
+  const languageRef = useRef(language);
+  languageRef.current = language;
+  const streamingAllowedRef = useRef(streamingAllowed);
+  streamingAllowedRef.current = streamingAllowed;
+
+  // --- VAD streaming state (only used when the pref is on) -----------------
+  const streamingRef = useRef(false);
+  const segRef = useRef<Float32Array[]>([]); // frames of the open segment (input rate)
+  const segSamplesRef = useRef(0);
+  const segHasSpeechRef = useRef(false);
+  const silenceSamplesRef = useRef(0);
+  const inputRateRef = useRef(TARGET_SAMPLE_RATE);
+  const queueRef = useRef<Float32Array[]>([]); // 16 kHz segments awaiting transcription
+  const busyRef = useRef(false);
+  const partsRef = useRef<string[]>([]);
+  const drainResolversRef = useRef<Array<() => void>>([]);
+  // Set at start() when streaming; flushes the last segment and resolves once
+  // the whole queue has been transcribed, returning the assembled text.
+  const finishStreamingRef = useRef<null | (() => Promise<string>)>(null);
 
   const teardownProcessor = useCallback(() => {
     if (tickRef.current != null) {
@@ -144,11 +185,113 @@ export function useRecorder(opts: {
     processorRef.current = processor;
     chunksRef.current = [];
 
-    processor.onaudioprocess = (ev) => {
-      const input = ev.inputBuffer.getChannelData(0);
-      // Copy — the buffer is reused by the audio thread.
-      chunksRef.current.push(new Float32Array(input));
-    };
+    const streaming = getVadStreaming() && streamingAllowedRef.current;
+    streamingRef.current = streaming;
+
+    if (streaming) {
+      const inputRate = ctx.sampleRate;
+      inputRateRef.current = inputRate;
+      segRef.current = [];
+      segSamplesRef.current = 0;
+      segHasSpeechRef.current = false;
+      silenceSamplesRef.current = 0;
+      queueRef.current = [];
+      busyRef.current = false;
+      partsRef.current = [];
+      drainResolversRef.current = [];
+
+      const minSamples = (VAD_MIN_SEGMENT_MS / 1000) * inputRate;
+      const hangoverSamples = (VAD_SILENCE_HANGOVER_MS / 1000) * inputRate;
+      const maxSamples = (VAD_MAX_SEGMENT_MS / 1000) * inputRate;
+
+      // Sequential worker: transcribes one queued segment at a time so the
+      // assembled text stays in order and we never run two whisper passes at
+      // once. Cheap now that the model stays loaded (see lib.rs cache).
+      const pump = () => {
+        if (busyRef.current) return;
+        const next = queueRef.current.shift();
+        if (!next) {
+          const resolvers = drainResolversRef.current;
+          drainResolversRef.current = [];
+          resolvers.forEach((r) => r());
+          return;
+        }
+        busyRef.current = true;
+        transcribeAudio(next, modelFileRef.current, languageRef.current)
+          .then((text) => {
+            const t = text.trim();
+            if (t) partsRef.current.push(t);
+          })
+          .catch((err) => {
+            onError?.(err instanceof Error ? err.message : String(err));
+          })
+          .finally(() => {
+            busyRef.current = false;
+            pump();
+          });
+      };
+
+      const closeSegment = () => {
+        const frames = segRef.current;
+        const samples = segSamplesRef.current;
+        segRef.current = [];
+        segSamplesRef.current = 0;
+        segHasSpeechRef.current = false;
+        silenceSamplesRef.current = 0;
+        if (samples === 0) return; // nothing but trimmed silence
+        const merged = new Float32Array(samples);
+        let off = 0;
+        for (const f of frames) {
+          merged.set(f, off);
+          off += f.length;
+        }
+        queueRef.current.push(
+          resampleLinear(merged, inputRateRef.current, TARGET_SAMPLE_RATE),
+        );
+        pump();
+      };
+
+      const drain = (): Promise<void> =>
+        new Promise((resolve) => {
+          if (queueRef.current.length === 0 && !busyRef.current) resolve();
+          else drainResolversRef.current.push(resolve);
+        });
+
+      finishStreamingRef.current = async () => {
+        closeSegment(); // flush the final, still-open segment
+        await drain(); // wait for every queued transcription to finish
+        return partsRef.current.join(" ").replace(/\s+/g, " ").trim();
+      };
+
+      processor.onaudioprocess = (ev) => {
+        const input = ev.inputBuffer.getChannelData(0);
+        const voiced = rms(input) >= VAD_RMS_THRESHOLD;
+        // Trim leading silence between utterances: don't start buffering a
+        // segment until speech actually begins.
+        if (!segHasSpeechRef.current && !voiced) return;
+        segRef.current.push(new Float32Array(input));
+        segSamplesRef.current += input.length;
+        if (voiced) {
+          segHasSpeechRef.current = true;
+          silenceSamplesRef.current = 0;
+        } else {
+          silenceSamplesRef.current += input.length;
+        }
+        const longEnough = segSamplesRef.current >= minSamples;
+        const trailingSilence = silenceSamplesRef.current >= hangoverSamples;
+        const tooLong = segSamplesRef.current >= maxSamples;
+        if ((segHasSpeechRef.current && longEnough && trailingSilence) || tooLong) {
+          closeSegment();
+        }
+      };
+    } else {
+      finishStreamingRef.current = null;
+      processor.onaudioprocess = (ev) => {
+        const input = ev.inputBuffer.getChannelData(0);
+        // Copy — the buffer is reused by the audio thread.
+        chunksRef.current.push(new Float32Array(input));
+      };
+    }
 
     sourceRef.current.connect(processor);
     processor.connect(ctx.destination);
@@ -160,35 +303,43 @@ export function useRecorder(opts: {
     }, 250);
 
     setStatus("recording");
-  }, [prime, status]);
+  }, [prime, status, onError]);
 
   const stop = useCallback(async () => {
     if (status !== "recording") return;
     const ctx = audioCtxRef.current;
     const chunks = chunksRef.current;
     const startTs = startTsRef.current;
+    const wasStreaming = streamingRef.current;
     teardownProcessor();
     setStatus("transcribing");
 
     try {
-      if (!ctx) throw new Error("Audio context perdido");
-      const inputRate = ctx.sampleRate;
-      const totalLen = chunks.reduce((n, c) => n + c.length, 0);
-      const merged = new Float32Array(totalLen);
-      let offset = 0;
-      for (const c of chunks) {
-        merged.set(c, offset);
-        offset += c.length;
+      let text: string;
+      if (wasStreaming && finishStreamingRef.current) {
+        // Most of the audio was already transcribed while recording; here we
+        // only flush the tail and wait for the queue to drain.
+        text = await finishStreamingRef.current();
+      } else {
+        if (!ctx) throw new Error("Audio context perdido");
+        const inputRate = ctx.sampleRate;
+        const totalLen = chunks.reduce((n, c) => n + c.length, 0);
+        const merged = new Float32Array(totalLen);
+        let offset = 0;
+        for (const c of chunks) {
+          merged.set(c, offset);
+          offset += c.length;
+        }
+        const resampled = resampleLinear(merged, inputRate, TARGET_SAMPLE_RATE);
+        text = await transcribeAudio(resampled, modelFile, language);
       }
 
-      const resampled = resampleLinear(merged, inputRate, TARGET_SAMPLE_RATE);
       const durationSec = (performance.now() - startTs) / 1000;
-
-      const text = await transcribeAudio(resampled, modelFile, language);
       onResult({ text: text.trim(), durationSec, at: new Date() });
     } catch (err) {
       onError?.(err instanceof Error ? err.message : String(err));
     } finally {
+      finishStreamingRef.current = null;
       setStatus("idle");
       setElapsedSec(0);
     }
@@ -208,6 +359,16 @@ export function useRecorder(opts: {
     stop,
     toggle,
   };
+}
+
+/** Root-mean-square amplitude of a frame — cheap voice-activity proxy. */
+function rms(frame: Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < frame.length; i++) {
+    const v = frame[i];
+    sum += v * v;
+  }
+  return Math.sqrt(sum / frame.length);
 }
 
 function resampleLinear(

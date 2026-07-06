@@ -22,8 +22,9 @@ export const TRIAL_DAYS = 14;
 // Lemon Squeezy checkout URL. Opened in the user's browser when they click
 // "Comprar licencia" from any of the activation entry points (banner, modal,
 // onboarding, Settings → Licencia).
+// LIVE / producción (29 €). El antiguo UUID b2ace9f5-… era el de TEST mode.
 export const PURCHASE_URL =
-  "https://local-whisper.lemonsqueezy.com/checkout/buy/b2ace9f5-c28b-49de-a877-229ff41d481a";
+  "https://local-whisper.lemonsqueezy.com/checkout/buy/822299b8-b059-41c5-a8d4-ce56c3ef3e81";
 
 /** Number of days before expiry where we start showing the countdown banner. */
 export const COUNTDOWN_THRESHOLD = 4;
@@ -62,8 +63,13 @@ export function trialDaysLeft(state: LicenseState): number {
   return Math.ceil(TRIAL_DAYS - elapsedDays);
 }
 
-/** True when the user can hit Record. Anything else blocks. */
-export function canRecord(state: LicenseState): boolean {
+/**
+ * True when the user has access to premium features (Estadísticas + the
+ * arena/bosque themes). Recording itself is ALWAYS free and never gated — the
+ * license only unlocks the premium extras. During the 14-day trial everyone
+ * gets premium; after that it requires an active key.
+ */
+export function hasPremium(state: LicenseState): boolean {
   if (state.status === "active") return true;
   if (state.status === "trial") return trialDaysLeft(state) > 0;
   return false;

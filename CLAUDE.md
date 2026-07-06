@@ -38,6 +38,14 @@ El modelo se descarga una vez y queda en el disco local del usuario. La URL de R
 
 Si en una actualización cambia el nombre del archivo, los usuarios antiguos **no se ven afectados** (tienen el archivo en disco y la ruta guardada en localStorage). El único efecto cosmético sería que `tierForFile()` ya no reconocería el nombre antiguo y mostraría "—" en lugar del nombre del tier. Solución: añadir el nombre anterior como alias en `tierForFile()` en `tiers.ts`.
 
+## Rendimiento de transcripción
+
+Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los tiers Equilibrada/Máxima. La latencia se optimiza por otras vías:
+
+- **Contexto Whisper cacheado** en `src-tauri/src/lib.rs` (`WhisperCache` en el estado de Tauri). El modelo (0,5–0,8 GB) se carga de disco **una vez por modelo**, no en cada dictado. Antes se releía cada vez → era la causa principal del "congelón al parar".
+- **Todos los núcleos:** `set_n_threads(available_parallelism)` en lugar del default de 4.
+- **Transcripción en directo (VAD streaming):** toggle opcional en Ajustes → General (pref `localwhisper.vadStreaming`, **off por defecto**). **Es función premium** — el toggle sale con candado si no hay premium, y `useRecorder` recibe `streamingAllowed={premium}` para no usarlo aunque la pref quede en `true` tras caducar el trial. Implementado en `src/hooks/useRecorder.ts`: VAD por energía (RMS) que trocea el audio por silencios y transcribe cada segmento en una cola secuencial *mientras* el usuario habla, así al parar solo queda la cola final. Ensambla el texto y lo pega una vez al terminar (no incremental). Tunables al inicio del archivo (`VAD_RMS_THRESHOLD`, `VAD_SILENCE_HANGOVER_MS`, etc.).
+
 ## Temas
 - 3 temas × 2 modos: `arena`, `pizarra`, `bosque` en `light` y `dark`
 - CSS aplicado vía `body[data-palette="${id}-${mode}"]`
@@ -53,10 +61,18 @@ Si en una actualización cambia el nombre del archivo, los usuarios antiguos **n
 ## Sistema de licencias
 
 ### Modelo
-- **14 días de trial completo** (sin limitar funciones)
-- A los 14 días sin clave válida → se bloquea la grabación (resto de la app sigue accesible)
-- **Pago único lifetime** vía Lemon Squeezy
+- **Freemium con tope semanal:** la transcripción es gratis pero **limitada a 2.000 palabras/semana** para usuarios sin licencia (modelo estilo Wispr Flow). El trial y la licencia dan transcripción **ilimitada**. Al agotar el tope, se bloquea *iniciar* un dictado nuevo (upsell) hasta que se renueva la semana o se activa una clave.
+- **Premium (trial o licencia) desbloquea:** transcripción ilimitada + la pantalla de **Estadísticas** (`insights`) + los **temas `arena` y `bosque`** + la **transcripción en directo (VAD streaming)**. El tema `pizarra` es el gratuito por defecto.
+- **14 días de trial premium:** durante los primeros 14 días todo va sin límites. Al caducar sin clave válida → tope de 2.000 palabras/semana y se bloquean Estadísticas / VAD / arena·bosque (fallback automático a `pizarra`).
+- **Pago único lifetime** vía Lemon Squeezy (**precio de salida 29 €**, a subir más adelante).
 - **3 activaciones por licencia** (configurado en el dashboard de LS)
+
+Implementación del gating (todo en frontend; Rust calcula `status` y lleva el contador):
+- `hasPremium(state)` en `src/state/license.ts` — antes era `canRecord`.
+- **Tope semanal:** contador en Rust `src-tauri/src/usage.rs` (`UsageStore` → `AppData/usage.json`, **no localStorage**, para que borrar la caché no lo resetee). Comandos `usage_get_state` / `usage_add_words`, con reset por semanas. Frontend: `src/state/usage.ts` (`WEEKLY_WORD_CAP = 2000`, `countWords`, `wordsRemaining`) + `useUsage`. En `App.tsx`: se cuentan palabras en `onResult` (solo si no premium) y `guardedToggle` bloquea iniciar si `overQuota`. El `LicenseBanner` muestra las palabras restantes.
+- `isPremiumTheme(id)` / `FREE_THEME` en `src/state/theme.ts`.
+- `App.tsx` — bloqueo de Estadísticas (`<PremiumLocked>`), candado en el nav (`Sidebar`) y auto-downgrade de tema al caducar el premium.
+- `Settings.tsx` — candado en el selector de temas premium y en el toggle de VAD.
 
 ### Fuente de verdad
 El estado vive en `AppData/license.json` — **NO en localStorage**. Esto es deliberado: borrar la caché de WebKit no debe resetear el trial ni perder la clave.
@@ -93,16 +109,13 @@ Implementado en `src-tauri/src/license.rs` (no en JS) para evitar que DevTools m
 
 ### Lemon Squeezy
 - Cuenta: `local-whisper.lemonsqueezy.com`
-- Producto: "Local Whisper — Licencia" (lifetime, 3 activaciones, license keys ON)
-- Checkout URL (**TEST MODE** ahora mismo): `https://local-whisper.lemonsqueezy.com/checkout/buy/b2ace9f5-c28b-49de-a877-229ff41d481a` (configurada en `src/state/license.ts` como `PURCHASE_URL`)
+- Producto: "Local Whisper — Licencia" (lifetime, 3 activaciones, license keys ON), **precio de salida 29 €**
+- Checkout URL (**LIVE / producción**): `https://local-whisper.lemonsqueezy.com/checkout/buy/822299b8-b059-41c5-a8d4-ce56c3ef3e81` (configurada en `src/state/license.ts` como `PURCHASE_URL`)
+- URL antigua de TEST (por si hay que volver a probar en test mode): `…/checkout/buy/b2ace9f5-c28b-49de-a877-229ff41d481a`
 
-**⚠️ Antes de lanzar en producción:**
-1. En LS, desactivar Test Mode (entornos test/live están completamente separados)
-2. Recrear el producto en live mode con la misma config (lifetime, 3 activations, license keys ON, tax category Software, mismos textos de confirmación/email)
-3. Copiar la nueva URL de checkout (UUID distinto) y actualizar `PURCHASE_URL` en `src/state/license.ts`
-4. Verificar que la cuenta de pago (Stripe payouts) está conectada a banco real
+**✅ Ya en producción.** Antes de lanzar se hizo: desactivar Test Mode, recrear el producto en live (lifetime, 3 activations, license keys ON, tax category Software), y actualizar `PURCHASE_URL`. Verificar que los payouts (Stripe) apuntan a banco real.
 
-Para test con tarjeta de Stripe: `4242 4242 4242 4242`, expiry `12/30`, CVC `123`, postal cualquiera.
+⚠️ **Ojo:** los entornos test/live están completamente separados — las license keys de test NO funcionan en live y viceversa. Para probar pagos reales, tarjeta de Stripe en modo test ya no aplica; usa el flujo live real (o vuelve a la URL de test arriba).
 
 ## Atajo de teclado global
 
