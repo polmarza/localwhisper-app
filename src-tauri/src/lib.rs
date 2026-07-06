@@ -289,14 +289,22 @@ async fn transcribe_audio(
 
     let language = language.unwrap_or_else(|| "es".into());
 
-    // 500 ms of leading zeros — whisper.cpp routinely drops the first 1-2 s
-    // of speech without this calibration window because it treats the
-    // leading audio as "this might be silence". The user can't hear the pad.
-    const PADDING_MS: usize = 500;
-    let pad_samples = 16_000 * PADDING_MS / 1_000;
-    let mut padded = Vec::with_capacity(pad_samples + samples.len());
-    padded.extend(std::iter::repeat(0.0_f32).take(pad_samples));
+    // Pad with silence on BOTH ends (the user can't hear it):
+    //   - Leading: whisper.cpp routinely drops the first 1-2 s of speech
+    //     without this calibration window (it treats the start as "might be
+    //     silence").
+    //   - Trailing: symmetrically, it clips the LAST word when the audio ends
+    //     abruptly on speech — i.e. when the user stops the instant they finish
+    //     talking. The trailing silence gives it the context to emit the final
+    //     segment.
+    const LEAD_PAD_MS: usize = 500;
+    const TRAIL_PAD_MS: usize = 500;
+    let lead = 16_000 * LEAD_PAD_MS / 1_000;
+    let trail = 16_000 * TRAIL_PAD_MS / 1_000;
+    let mut padded = Vec::with_capacity(lead + samples.len() + trail);
+    padded.extend(std::iter::repeat(0.0_f32).take(lead));
     padded.extend(samples);
+    padded.extend(std::iter::repeat(0.0_f32).take(trail));
 
     // Shared handle to the cached context — cloned out here so it can move into
     // the blocking task.
