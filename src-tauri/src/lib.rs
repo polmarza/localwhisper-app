@@ -328,7 +328,7 @@ async fn transcribe_audio(
                 _ => {
                     let ctx = Arc::new(
                         WhisperContext::new_with_params(
-                            &model_path.to_string_lossy(),
+                            &model_path,
                             WhisperContextParameters::default(),
                         )
                         .map_err(|e| format!("Cargando modelo Whisper: {e}"))?,
@@ -383,17 +383,19 @@ async fn transcribe_audio(
             .full(params, &padded)
             .map_err(|e| format!("Transcribiendo audio: {e}"))?;
 
-        let n_segments = state
-            .full_n_segments()
-            .map_err(|e| format!("Leyendo resultado: {e}"))?;
+        // whisper-rs 0.16: full_n_segments returns i32 directly, and segment
+        // text is read via get_segment(i) -> WhisperSegment::to_str_lossy().
+        let n_segments = state.full_n_segments();
 
         let mut out = String::new();
         for i in 0..n_segments {
-            let seg = state
-                .full_get_segment_text(i)
-                .map_err(|e| format!("Leyendo segmento {i}: {e}"))?;
-            out.push_str(seg.trim());
-            out.push(' ');
+            if let Some(seg) = state.get_segment(i) {
+                let text = seg
+                    .to_str_lossy()
+                    .map_err(|e| format!("Leyendo segmento {i}: {e}"))?;
+                out.push_str(text.trim());
+                out.push(' ');
+            }
         }
 
         Ok(strip_whisper_markers(&out))
