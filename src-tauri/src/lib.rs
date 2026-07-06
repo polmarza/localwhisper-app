@@ -1,6 +1,7 @@
 mod license;
 
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use futures_util::StreamExt;
@@ -9,6 +10,7 @@ use tauri::ipc::Channel;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
+use whisper_rs::{WhisperContext, WhisperContextParameters};
 
 use license::LicenseStore;
 
@@ -233,6 +235,21 @@ fn resolve_whisper_model(app: &AppHandle, file_name: &str) -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(file_name))
 }
 
+/// Caches the loaded Whisper model across dictations. Loading a 0.5–0.8 GB
+/// model from disk and initialising the context costs hundreds of ms to
+/// seconds; doing that once per model instead of once per dictation removes
+/// that fixed latency from every stop. Keyed by file name so switching the
+/// model in Settings transparently triggers a reload.
+#[derive(Default)]
+struct WhisperCache {
+    inner: Arc<Mutex<Option<CachedModel>>>,
+}
+
+struct CachedModel {
+    file: String,
+    ctx: Arc<WhisperContext>,
+}
+
 #[tauri::command]
 async fn transcribe_audio(
     app: AppHandle,
@@ -280,14 +297,36 @@ async fn transcribe_audio(
     padded.extend(std::iter::repeat(0.0_f32).take(pad_samples));
     padded.extend(samples);
 
-    let transcript = tokio::task::spawn_blocking(move || -> Result<String, String> {
-        use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+    // Shared handle to the cached context — cloned out here so it can move into
+    // the blocking task.
+    let cache = app.state::<WhisperCache>().inner.clone();
 
-        let ctx = WhisperContext::new_with_params(
-            &model_path.to_string_lossy(),
-            WhisperContextParameters::default(),
-        )
-        .map_err(|e| format!("Cargando modelo Whisper: {e}"))?;
+    let transcript = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        use whisper_rs::{FullParams, SamplingStrategy};
+
+        // Reuse the loaded model if it matches; otherwise load it once and cache
+        // it. The Arc is cloned out while the lock is held, then the lock is
+        // released so we don't serialise the (long) transcription itself.
+        let ctx: Arc<WhisperContext> = {
+            let mut guard = cache.lock().unwrap();
+            match guard.as_ref() {
+                Some(cached) if cached.file == model_file => cached.ctx.clone(),
+                _ => {
+                    let ctx = Arc::new(
+                        WhisperContext::new_with_params(
+                            &model_path.to_string_lossy(),
+                            WhisperContextParameters::default(),
+                        )
+                        .map_err(|e| format!("Cargando modelo Whisper: {e}"))?,
+                    );
+                    *guard = Some(CachedModel {
+                        file: model_file.clone(),
+                        ctx: ctx.clone(),
+                    });
+                    ctx
+                }
+            }
+        };
 
         let mut state = ctx
             .create_state()
@@ -308,6 +347,15 @@ async fn transcribe_audio(
         params.set_temperature(0.0);
         params.set_suppress_blank(true);
         params.set_max_initial_ts(0.0);
+
+        // whisper-rs defaults to min(4, n_cpus) threads, leaving most of a
+        // modern multi-core machine idle. Use all available cores for the
+        // CPU-bound decode — the biggest lever on transcription latency after
+        // caching the model above.
+        let n_threads = std::thread::available_parallelism()
+            .map(|n| n.get() as i32)
+            .unwrap_or(4);
+        params.set_n_threads(n_threads);
 
         state
             .full(params, &padded)
@@ -729,6 +777,10 @@ pub fn run() {
             let license_store = LicenseStore::load(app.handle())
                 .map_err(|e| format!("license init: {e}"))?;
             app.manage(license_store);
+
+            // Holds the loaded Whisper model between dictations so it isn't
+            // re-read from disk on every transcription.
+            app.manage(WhisperCache::default());
 
             // Pop the macOS Accessibility prompt on first launch so the user
             // can grant the permission needed for the paste step. After they
