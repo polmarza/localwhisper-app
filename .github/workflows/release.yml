@@ -76,35 +76,22 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      # tauri-action signs the .app ad-hoc but does NOT embed the entitlements
-      # from `bundle.macOS.entitlements` when there's no Developer ID. The
-      # post-build step below re-signs with the entitlements file so the WebView
-      # can actually access the microphone (without these, the recorder pill
-      # flashes for a frame and dies because the macOS sandbox blocks
-      # getUserMedia silently).
-      #
-      # Once Apple Developer enrollment is approved and the APPLE_* secrets are
-      # set, the proper signing identity replaces ad-hoc and this becomes
-      # unnecessary — tauri-action handles signing+entitlements together when a
-      # real identity is configured.
+      # tauri-action signs the macOS bundle with the Developer ID identity and
+      # notarizes it when the APPLE_* secrets are present, embedding the
+      # entitlements from bundle.macOS.entitlements. No manual re-sign needed.
       - name: Build & release
         id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NOTE: The signing env vars are intentionally NOT passed yet. The
-          # Tauri action treats them as "signing requested" even when empty,
-          # which makes the macOS bundling step fail trying to import an empty
-          # cert into the keychain. Uncomment and add the GitHub Secrets once:
-          #   1. Apple Developer enrollment is approved → APPLE_* secrets
-          #   2. Tauri updater key pair is generated   → TAURI_SIGNING_* secrets
-          #
-          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Apple Developer ID signing + notarization.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Tauri auto-updater signing — separate future step, not wired yet:
           # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
@@ -127,62 +114,6 @@ jobs:
           # "latest" to anyone browsing the releases page.
           prerelease: ${{ contains(github.ref_name, '-preview') || contains(github.ref_name, '-beta') }}
           args: ${{ matrix.args }}
-
-      # macOS only: re-sign the .app with entitlements and rebuild the DMG so
-      # the published artifact actually has the audio-input entitlement
-      # embedded. See the "Build & release" step above for the why.
-      - name: Re-sign with entitlements (macOS only)
-        if: startsWith(matrix.platform, 'macos')
-        env:
-          TARGET: ${{ matrix.target }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -eu
-          APP_DIR="src-tauri/target/${TARGET}/release/bundle/macos"
-          DMG_DIR="src-tauri/target/${TARGET}/release/bundle/dmg"
-          APP="$APP_DIR/Local Whisper.app"
-          ENT="src-tauri/entitlements.plist"
-
-          # 1. Re-sign the .app in place with the entitlements that Tauri's
-          #    bundler skipped (it skips them under ad-hoc identity).
-          codesign --force --deep --sign - --entitlements "$ENT" "$APP"
-          codesign --verify --deep --strict "$APP"
-
-          # 2. Rebuild the DMG from the resigned .app. The DMG that
-          #    tauri-action produced contains the pre-resign signature, so we
-          #    discard it and create a fresh one with hdiutil.
-          OLD_DMG=$(ls "$DMG_DIR"/*.dmg 2>/dev/null | head -1)
-          if [ -n "$OLD_DMG" ]; then
-            DMG_NAME=$(basename "$OLD_DMG")
-            rm -f "$OLD_DMG"
-            STAGING="$(mktemp -d)/staging"
-            mkdir -p "$STAGING"
-            cp -R "$APP" "$STAGING/"
-            ln -sf /Applications "$STAGING/Applications"
-            hdiutil create \
-              -volname "Local Whisper" \
-              -srcfolder "$STAGING" \
-              -ov \
-              -format UDZO \
-              "$DMG_DIR/$DMG_NAME"
-            rm -rf "$STAGING"
-          fi
-
-          # 3. Rebuild the .app.tar.gz from the resigned .app (needed by the
-          #    auto-updater once that's wired in).
-          OLD_TAR=$(ls "$APP_DIR"/*.app.tar.gz 2>/dev/null | head -1)
-          if [ -n "$OLD_TAR" ]; then
-            TAR_NAME=$(basename "$OLD_TAR")
-            (cd "$APP_DIR" && rm -f "$TAR_NAME" && tar czf "$TAR_NAME" "Local Whisper.app")
-          fi
-
-          # 4. Overwrite the artifacts on the GitHub Release with the
-          #    resigned versions.
-          gh release upload "${{ github.ref_name }}" \
-            "$DMG_DIR"/*.dmg \
-            "$APP_DIR"/*.app.tar.gz \
-            --clobber \
-            -R ${{ github.repository }}
 
   # ----------------------------------------------------------------------
   # Mirror the GitHub Release artifacts to Cloudflare R2 so the landing
