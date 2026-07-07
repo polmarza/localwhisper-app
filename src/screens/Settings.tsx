@@ -1171,7 +1171,7 @@ export function SettingsScreen({
                   </Row>
                   <Row
                     label="Comprar licencia"
-                    hint="Pago único. Activa la app en hasta 3 equipos."
+                    hint="Pago único desde 29 €. Elige 1, 2 o 3 equipos en la web."
                   >
                     <Btn
                       variant="ghost"

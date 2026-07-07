@@ -19,12 +19,12 @@ export type LicenseState = {
 
 export const TRIAL_DAYS = 14;
 
-// Lemon Squeezy checkout URL. Opened in the user's browser when they click
-// "Comprar licencia" from any of the activation entry points (banner, modal,
-// onboarding, Settings → Licencia).
-// LIVE / producción (29 €). El antiguo UUID b2ace9f5-… era el de TEST mode.
-export const PURCHASE_URL =
-  "https://local-whisper.lemonsqueezy.com/checkout/buy/822299b8-b059-41c5-a8d4-ce56c3ef3e81";
+// Página de precios de la landing (3 tramos: 1/2/3 equipos → 29/39/49 €).
+// Se abre en el navegador al pulsar "Comprar" desde cualquier punto de
+// activación (banner, modal, onboarding, Settings → Licencia). Apuntamos a la
+// web —y no a un checkout fijo de Lemon Squeezy— para tener los precios en un
+// único sitio: si cambian los tramos, solo se toca la landing, sin release.
+export const PURCHASE_URL = "https://localwhisper.app/#license";
 
 /** Number of days before expiry where we start showing the countdown banner. */
 export const COUNTDOWN_THRESHOLD = 4;
