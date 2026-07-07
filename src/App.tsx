@@ -15,7 +15,8 @@ import { HelpScreen } from "./screens/Help";
 import { SettingsScreen } from "./screens/Settings";
 import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 import { formatDuration, useRecorder, type RecorderResult } from "./hooks/useRecorder";
-import { pasteText, setShortcut } from "./lib/tauri";
+import { pasteText, setShortcuts } from "./lib/tauri";
+import { getHoldAccelerator, getToggleAccelerator } from "./state/shortcuts";
 import {
   clearTranscriptions,
   insertTranscription,
@@ -36,8 +37,6 @@ import {
   getStoreLocal,
   getTextScale,
   getTranscriptFont,
-  getShortcut,
-  getShortcutMode,
   getUserName,
   setLanguage,
   setMicDeviceId,
@@ -101,10 +100,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    // Rust registra el atajo por defecto al arrancar; si el usuario tiene uno
-    // personalizado guardado, lo aplicamos por encima al cargar la app.
-    const custom = getShortcut();
-    if (custom) void setShortcut(custom).catch(() => {});
+    // Rust registra los atajos por defecto al arrancar; aplicamos por encima
+    // los guardados del usuario (idempotente si coinciden con los defaults).
+    void setShortcuts(getToggleAccelerator(), getHoldAccelerator()).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -413,20 +411,7 @@ function Dashboard({
   // Starting a dictation is blocked only when a free user has exhausted their
   // weekly word quota — then we surface the upsell modal. Stopping an in-flight
   // recording is always allowed.
-  // Mientras el grabador de atajos está abierto (Ajustes/onboarding), el atajo
-  // global no debe arrancar un dictado: el usuario está pulsando combinaciones
-  // para GRABARLAS. El ShortcutRecorder emite este evento al abrir/cerrar.
-  const shortcutRecorderActiveRef = useRef(false);
-  useEffect(() => {
-    const handler = (e: Event) => {
-      shortcutRecorderActiveRef.current = Boolean((e as CustomEvent).detail);
-    };
-    window.addEventListener("shortcut-recorder-active", handler);
-    return () => window.removeEventListener("shortcut-recorder-active", handler);
-  }, []);
-
   const guardedToggle = useCallback(() => {
-    if (shortcutRecorderActiveRef.current) return;
     if (statusRef.current !== "recording" && overQuotaRef.current) {
       setLicenseModalOpen(true);
       return;
@@ -434,18 +419,12 @@ function Dashboard({
     toggle();
   }, [toggle]);
 
-  // Push-to-talk: pulsación en curso iniciada por "mantener". Guardamos cuándo
-  // empezó para distinguir un toque rápido (<400 ms → se queda grabando, como
-  // un toggle) de un mantener real (al soltar → parar y transcribir).
+  // Push-to-talk (atajo "hold"): pulsación en curso. Guardamos cuándo empezó
+  // para distinguir un toque rápido (<400 ms → se queda grabando, como un
+  // toggle) de un mantener real (al soltar → parar y transcribir).
   const holdStartedAtRef = useRef<number | null>(null);
 
-  const onShortcutPressed = useCallback(() => {
-    if (shortcutRecorderActiveRef.current) return;
-    if (getShortcutMode() === "toggle") {
-      guardedToggle();
-      return;
-    }
-    // Modo "mantener pulsado".
+  const onHoldPressed = useCallback(() => {
     if (statusRef.current === "recording") {
       // Repetición de tecla mientras se mantiene → ignorar. Solo una pulsación
       // NUEVA (tras un toque rápido que dejó la grabación abierta) debe parar.
@@ -462,10 +441,9 @@ function Dashboard({
     }
     holdStartedAtRef.current = Date.now();
     void start();
-  }, [guardedToggle, start, stop]);
+  }, [start, stop]);
 
-  const onShortcutReleased = useCallback(() => {
-    if (getShortcutMode() !== "hold") return;
+  const onHoldReleased = useCallback(() => {
     const startedAt = holdStartedAtRef.current;
     holdStartedAtRef.current = null;
     if (startedAt === null) return;
@@ -478,14 +456,18 @@ function Dashboard({
   // listeners (subscribed exactly once on mount) always call the current
   // closures — otherwise React would re-subscribe on every status change and
   // leak stale listeners that fire start() and stop() concurrently.
-  const pressedRef = useRef(onShortcutPressed);
-  pressedRef.current = onShortcutPressed;
-  const releasedRef = useRef(onShortcutReleased);
-  releasedRef.current = onShortcutReleased;
+  const toggleEvRef = useRef(guardedToggle);
+  toggleEvRef.current = guardedToggle;
+  const holdPressedRef = useRef(onHoldPressed);
+  holdPressedRef.current = onHoldPressed;
+  const holdReleasedRef = useRef(onHoldReleased);
+  holdReleasedRef.current = onHoldReleased;
   useEffect(() => {
-    const pPressed = listen<void>("shortcut-pressed", () => pressedRef.current());
-    const pReleased = listen<void>("shortcut-released", () => releasedRef.current());
+    const pToggle = listen<void>("shortcut-toggle", () => toggleEvRef.current());
+    const pPressed = listen<void>("shortcut-hold-pressed", () => holdPressedRef.current());
+    const pReleased = listen<void>("shortcut-hold-released", () => holdReleasedRef.current());
     return () => {
+      pToggle.then((fn) => fn());
       pPressed.then((fn) => fn());
       pReleased.then((fn) => fn());
     };

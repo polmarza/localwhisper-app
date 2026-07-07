@@ -54,24 +54,17 @@ export async function openUrl(url: string): Promise<void> {
 }
 
 /**
- * Cambia el atajo global de grabación en caliente. `accelerator` va en el
- * formato del plugin de Tauri ("Alt+Space", "CmdOrCtrl+Shift+D", …).
- * Rechaza (throw) si la combinación ya está en uso — la UI lo usa para avisar
- * sin dejar al usuario sin atajo (el anterior sigue activo si este falla).
+ * Configura los dos atajos globales de grabación de una vez, en formato del
+ * plugin de Tauri ("Alt+Space", "Ctrl+Alt+D", …). `toggle` = pulsar/pulsar;
+ * `hold` = mantener pulsado (push-to-talk), null para desactivarlo.
+ * Rechaza (throw) si alguna combinación no se puede registrar (en uso por otra
+ * app) o si ambas coinciden — la UI revierte el desplegable y avisa.
  */
-export async function setShortcut(accelerator: string): Promise<void> {
-  return invoke("set_shortcut", { accelerator });
-}
-
-/**
- * Desregistra el atajo global activo sin poner otro. Se usa mientras el
- * grabador está escuchando: si el atajo actual sigue registrado a nivel de
- * sistema, pulsarlo no llega como evento de teclado a la ventana (el SO lo
- * intercepta antes) y el grabador nunca lo detecta. Restaura con
- * `setShortcut` al terminar (con el nuevo, o con el anterior si se cancela).
- */
-export async function disableShortcut(): Promise<void> {
-  return invoke("disable_shortcut");
+export async function setShortcuts(
+  toggle: string | null,
+  hold: string | null,
+): Promise<void> {
+  return invoke("set_shortcuts", { toggle, hold });
 }
 
 export type PasteOutcome = {

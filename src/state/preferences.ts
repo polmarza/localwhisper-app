@@ -12,8 +12,8 @@ const KEY_MIC_DEVICE = "localwhisper.micDeviceId";
 const KEY_TEXT_SCALE = "localwhisper.textScale";
 const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
 const KEY_USER_NAME = "localwhisper.userName";
-const KEY_SHORTCUT = "localwhisper.shortcut";
-const KEY_SHORTCUT_MODE = "localwhisper.shortcutMode";
+const KEY_SHORTCUT_TOGGLE = "localwhisper.shortcutToggle";
+const KEY_SHORTCUT_HOLD = "localwhisper.shortcutHold";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -107,46 +107,39 @@ export function setUserName(name: string) {
   }
 }
 
-// Atajo global para grabar, en el formato del plugin de Tauri ("Alt+Space",
-// "CmdOrCtrl+Shift+D", …). Vacío = usar el default por plataforma que registra
-// Rust al arrancar. Al cambiarlo llamamos al comando `set_shortcut` en Rust.
-export function getShortcut(): string {
+// Los dos atajos globales de grabación, en formato del plugin de Tauri
+// ("Alt+Space", "Ctrl+Alt+D", …). Vacío = default de plataforma.
+//   - toggle: pulsar para empezar, pulsar otra vez para parar.
+//   - hold:   mantener pulsado para dictar (push-to-talk); "none" = desactivado.
+export function getToggleShortcutPref(): string {
   try {
-    return (localStorage.getItem(KEY_SHORTCUT) ?? "").trim();
+    return (localStorage.getItem(KEY_SHORTCUT_TOGGLE) ?? "").trim();
   } catch {
     return "";
   }
 }
 
-export function setShortcut(accelerator: string) {
+export function setToggleShortcutPref(accelerator: string) {
   try {
-    const trimmed = accelerator.trim();
-    if (trimmed) localStorage.setItem(KEY_SHORTCUT, trimmed);
-    else localStorage.removeItem(KEY_SHORTCUT);
+    if (accelerator) localStorage.setItem(KEY_SHORTCUT_TOGGLE, accelerator);
+    else localStorage.removeItem(KEY_SHORTCUT_TOGGLE);
   } catch {
     // ignore
   }
 }
 
-// Cómo se comporta el atajo global de grabación:
-//   - "toggle": pulsar para empezar, pulsar otra vez para parar (default).
-//   - "hold":   mantener pulsado para dictar; al soltar, transcribe. Un toque
-//               rápido (<400 ms) también inicia/para, para no generar clips
-//               basura de milisegundos.
-export type ShortcutMode = "toggle" | "hold";
-
-export function getShortcutMode(): ShortcutMode {
+export function getHoldShortcutPref(): string {
   try {
-    const v = localStorage.getItem(KEY_SHORTCUT_MODE);
-    return v === "hold" ? "hold" : "toggle";
+    return (localStorage.getItem(KEY_SHORTCUT_HOLD) ?? "").trim();
   } catch {
-    return "toggle";
+    return "";
   }
 }
 
-export function setShortcutMode(mode: ShortcutMode) {
+export function setHoldShortcutPref(acceleratorOrNone: string) {
   try {
-    localStorage.setItem(KEY_SHORTCUT_MODE, mode);
+    if (acceleratorOrNone) localStorage.setItem(KEY_SHORTCUT_HOLD, acceleratorOrNone);
+    else localStorage.removeItem(KEY_SHORTCUT_HOLD);
   } catch {
     // ignore
   }

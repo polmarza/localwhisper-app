@@ -1072,114 +1072,22 @@ kbd {
   border-radius: 5px;
 }
 
-/* Shortcut recorder ------------------------------------------------------ */
+/* Shortcut selects (desplegables de atajos) ------------------------------- */
 
-.shortcut-recorder {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-.shortcut-recorder-slot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.shortcut-select {
   min-width: 190px;
-  min-height: 46px;
-  padding: 8px 16px;
-  border: 1.5px dashed var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.shortcut-recorder-slot:hover { border-color: var(--accent); }
-.shortcut-recorder-slot[data-recording="true"] {
-  border-style: solid;
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.shortcut-recorder-keys { display: inline-flex; gap: 6px; align-items: center; }
-.shortcut-recorder-hint { font-size: 13.5px; color: var(--accent); }
-.shortcut-recorder-keys kbd[data-live] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  animation: shortcut-live-pulse 1s ease-in-out infinite;
-}
-.shortcut-recorder-slot[data-saved="true"] {
-  border-style: solid;
-  border-color: var(--good);
-}
-.shortcut-recorder-saved {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--good);
-  white-space: nowrap;
-  margin: 0;
-}
-@keyframes shortcut-live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.75; }
-}
-.shortcut-recorder-actions { display: flex; gap: 8px; }
-.shortcut-recorder-btn {
-  font-size: 13px;
-  padding: 5px 12px;
-  border-radius: 8px;
+  font-size: 13.5px;
+  padding: 9px 12px;
+  border-radius: 9px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
+  outline: none;
   cursor: pointer;
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
-.shortcut-recorder-btn:hover { background: var(--sidebar); }
-.shortcut-recorder-btn.ghost { border-color: transparent; color: var(--ink-3); }
-.shortcut-recorder-error { font-size: 13px; color: var(--danger); margin: 0; max-width: 300px; }
+.shortcut-select:focus { border-color: var(--accent); }
 
-/* Shortcut mode picker (toggle vs push-to-talk) ---------------------------- */
-
-.shortcut-mode-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  align-items: flex-start;
-}
-.shortcut-mode-tabs {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--sidebar-2);
-  border-radius: 9px;
-}
-.shortcut-mode-tab {
-  height: 32px;
-  padding: 0 16px;
-  border: 0;
-  background: transparent;
-  color: var(--ink-3);
-  font-size: 12.5px;
-  font-weight: 500;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-.shortcut-mode-tab[data-active="true"] {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-.shortcut-mode-hint {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--ink-3);
-  line-height: 1.45;
-  max-width: 320px;
-}
-/* En el onboarding el paso va centrado; en Ajustes, alineado a la derecha
-   de su Row (flex-start del propio picker). */
-.onb-step .shortcut-mode-picker { align-items: center; }
-.onb-step .shortcut-mode-hint { text-align: center; }
 
 /* Trial banner ----------------------------------------------------------- */
 

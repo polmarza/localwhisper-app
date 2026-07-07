@@ -13,9 +13,7 @@ import {
   IconShield,
 } from "../components/Icons";
 import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
-import { ShortcutRecorder } from "../components/ShortcutRecorder";
-import { ShortcutModePicker } from "../components/ShortcutModePicker";
-import { getRecordingAccelerator } from "../state/shortcuts";
+import { ShortcutSelect, useShortcutsConfig } from "../components/ShortcutSelect";
 import {
   listAllTranscriptions,
   listDictionaryEntries,
@@ -278,7 +276,7 @@ export function SettingsScreen({
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
   const [sounds, setSoundsState] = useState(() => getSounds());
   const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
-  const [shortcutAccel, setShortcutAccel] = useState(() => getRecordingAccelerator());
+  const shortcuts = useShortcutsConfig();
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -1069,20 +1067,36 @@ export function SettingsScreen({
             <Card padding={0}>
               <SectionHead
                 title="Atajos de teclado"
-                subtitle="Elige la combinación que prefieras. Si ya está en uso por el sistema u otra app, te avisamos."
+                subtitle="Los dos funcionan a la vez y se aplican al instante. Si una combinación ya está en uso por otra app, te avisamos."
               />
               <Row
-                label="Empezar a dictar"
-                hint="Pulsa para iniciar o detener una grabación desde cualquier app."
+                label="Pulsar para dictar"
+                hint="Un toque para empezar a grabar y otro para terminar, desde cualquier app."
               >
-                <ShortcutRecorder value={shortcutAccel} onChange={setShortcutAccel} />
+                <ShortcutSelect
+                  value={shortcuts.toggleAccel}
+                  onChange={shortcuts.setToggle}
+                  exclude={shortcuts.holdAccel}
+                />
               </Row>
               <Row
-                label="Comportamiento"
-                hint="Cómo responde el atajo mientras dictas."
+                label="Mantener pulsado para dictar"
+                hint="Dictas mientras lo sostienes; al soltarlo se transcribe. Elige «Ninguno» si no lo quieres."
               >
-                <ShortcutModePicker />
+                <ShortcutSelect
+                  value={shortcuts.holdAccel}
+                  onChange={shortcuts.setHold}
+                  exclude={shortcuts.toggleAccel}
+                  allowNone
+                />
               </Row>
+              {shortcuts.error && (
+                <div style={{ padding: "10px 20px 16px" }}>
+                  <span style={{ fontSize: 12.5, color: "var(--danger)" }}>
+                    {shortcuts.error}
+                  </span>
+                </div>
+              )}
             </Card>
           )}
 

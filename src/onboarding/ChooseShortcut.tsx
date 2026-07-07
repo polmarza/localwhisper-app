@@ -1,41 +1,56 @@
-import { useState } from "react";
-import { ShortcutRecorder } from "../components/ShortcutRecorder";
-import { ShortcutModePicker } from "../components/ShortcutModePicker";
-import { getRecordingAccelerator } from "../state/shortcuts";
+import { ShortcutSelect, useShortcutsConfig } from "../components/ShortcutSelect";
 
 type Props = {
   onContinue: () => void;
 };
 
 export function ChooseShortcut({ onContinue }: Props) {
-  const [accel, setAccel] = useState(() => getRecordingAccelerator());
+  const shortcuts = useShortcutsConfig();
 
   return (
     <div
       className="onb-step"
       style={{ alignItems: "center", justifyContent: "center", textAlign: "center" }}
     >
-      <h1 className="onb-heading serif">Tu atajo para dictar.</h1>
+      <h1 className="onb-heading serif">Tus atajos para dictar.</h1>
       <p className="onb-sub">
-        Púlsalo en cualquier app para empezar a grabar; vuelve a pulsarlo para parar y el texto se
-        pega donde tengas el cursor. Puedes dejar el que viene o grabar el tuyo.
+        Funcionan desde cualquier app y el texto se pega donde tengas el cursor. Puedes cambiarlos
+        cuando quieras en Ajustes → Atajos.
       </p>
 
-      <div style={{ marginTop: 10 }}>
-        <ShortcutRecorder value={accel} onChange={setAccel} />
+      <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 18, marginTop: 8 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 7, textAlign: "left" }}>
+          <span className="onb-field-label">Pulsar para dictar</span>
+          <ShortcutSelect
+            value={shortcuts.toggleAccel}
+            onChange={shortcuts.setToggle}
+            exclude={shortcuts.holdAccel}
+          />
+          <span className="onb-field-hint">Un toque para empezar a grabar y otro para terminar.</span>
+        </label>
+
+        <label style={{ display: "flex", flexDirection: "column", gap: 7, textAlign: "left" }}>
+          <span className="onb-field-label">Mantener pulsado para dictar</span>
+          <ShortcutSelect
+            value={shortcuts.holdAccel}
+            onChange={shortcuts.setHold}
+            exclude={shortcuts.toggleAccel}
+            allowNone
+          />
+          <span className="onb-field-hint">
+            Dictas mientras lo sostienes; al soltarlo se transcribe. Elige «Ninguno» si no lo
+            quieres.
+          </span>
+        </label>
+
+        {shortcuts.error && (
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--danger)", textAlign: "left" }}>
+            {shortcuts.error}
+          </p>
+        )}
       </div>
 
-      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-        <span className="onb-field-label">¿Cómo prefieres dictar?</span>
-        <ShortcutModePicker />
-      </div>
-
-      <p className="onb-field-hint" style={{ maxWidth: 340, marginTop: 10 }}>
-        Consejo: elige una combinación que no uses para otra cosa. Si la que grabas ya está ocupada,
-        te avisaremos para que pruebes otra.
-      </p>
-
-      <button type="button" className="onb-btn primary" onClick={onContinue} style={{ marginTop: 20 }}>
+      <button type="button" className="onb-btn primary" onClick={onContinue} style={{ marginTop: 22 }}>
         Continuar
       </button>
     </div>
