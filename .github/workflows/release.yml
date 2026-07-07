@@ -91,9 +91,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Tauri auto-updater signing — separate future step, not wired yet:
-          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Tauri auto-updater signing. Con estas presentes + createUpdaterArtifacts,
+          # tauri-action firma los paquetes de update y genera `latest.json`
+          # (el manifiesto) como asset del Release.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Local Whisper ${{ github.ref_name }}"
@@ -149,6 +151,40 @@ jobs:
             "s3://${R2_BUCKET}/${TAG}/" \
             --recursive \
             --endpoint-url "$R2_ENDPOINT"
+
+      # Auto-updater manifests. tauri-action genera `latest.json` (firmado) y lo
+      # adjunta al Release; lo publicamos en R2 como el manifiesto del canal:
+      #   - tag preview  → updates/preview.json
+      #   - tag stable   → updates/stable.json  Y  updates/preview.json
+      #     (una stable también es "la más nueva" para quien está en preview;
+      #      el updater nunca degrada, así que a un preview más nuevo no le
+      #      afecta). Las URLs de descarga dentro del manifiesto apuntan al
+      #      Release de GitHub (válidas como origen de update).
+      - name: Publish updater manifests to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ ! -f release-assets/latest.json ]; then
+            echo "No hay latest.json (¿falta TAURI_SIGNING_PRIVATE_KEY?). Se omite el manifiesto."
+            exit 0
+          fi
+          put() {
+            aws s3 cp release-assets/latest.json \
+              "s3://${R2_BUCKET}/updates/$1" \
+              --content-type application/json \
+              --cache-control "no-cache" \
+              --endpoint-url "$R2_ENDPOINT"
+          }
+          if echo "${{ github.ref_name }}" | grep -qE '\-(preview|beta)'; then
+            put preview.json
+          else
+            put stable.json
+            put preview.json
+          fi
 
       # Stable channel mirror: only run for tags WITHOUT -preview/-beta suffix.
       # We rename to stable filenames so links like

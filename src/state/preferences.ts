@@ -13,6 +13,7 @@ const KEY_TEXT_SCALE = "localwhisper.textScale";
 const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
 const KEY_USER_NAME = "localwhisper.userName";
 const KEY_SHORTCUT = "localwhisper.shortcut";
+const KEY_UPDATE_CHANNEL = "localwhisper.updateChannel";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -120,6 +121,28 @@ export function setShortcutPref(accelerator: string) {
   try {
     if (accelerator) localStorage.setItem(KEY_SHORTCUT, accelerator);
     else localStorage.removeItem(KEY_SHORTCUT);
+  } catch {
+    // ignore
+  }
+}
+
+// Canal de actualizaciones:
+//   - "stable":  solo versiones estables (default).
+//   - "preview": también recibe betas (previews). Toggle "Recibir versiones
+//                beta" en Ajustes → General.
+export type UpdateChannel = "stable" | "preview";
+
+export function getUpdateChannel(): UpdateChannel {
+  try {
+    return localStorage.getItem(KEY_UPDATE_CHANNEL) === "preview" ? "preview" : "stable";
+  } catch {
+    return "stable";
+  }
+}
+
+export function setUpdateChannel(channel: UpdateChannel) {
+  try {
+    localStorage.setItem(KEY_UPDATE_CHANNEL, channel);
   } catch {
     // ignore
   }

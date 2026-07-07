@@ -6,6 +6,8 @@ import { MacWindowFrame } from "./components/MacWindow";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { LicenseBanner } from "./components/LicenseBanner";
+import { UpdateBanner } from "./components/UpdateBanner";
+import { useUpdater } from "./hooks/useUpdater";
 import { LicenseModal } from "./components/LicenseModal";
 import { TutorialModal } from "./components/TutorialModal";
 import { HomeScreen } from "./screens/Home";
@@ -353,6 +355,7 @@ function Dashboard({
   // dictation until it resets or they buy a license.
   const usage = useUsage();
   const dictionary = useDictionary();
+  const updater = useUpdater();
   const overQuota = !premium && !!usage.state && wordsRemaining(usage.state) <= 0;
 
   premiumRef.current = premium;
@@ -494,6 +497,12 @@ function Dashboard({
             minWidth: 0,
           }}
         >
+          <UpdateBanner
+            state={updater.state}
+            onInstall={updater.install}
+            onRestart={updater.restart}
+            onDismiss={updater.dismiss}
+          />
           <TopBar
             title={TITLES[screen]}
             recording={status === "recording"}
@@ -559,6 +568,10 @@ function Dashboard({
                 onTextScaleChange={onTextScaleChange}
                 initialSection={pendingSettingsSection}
                 licenseState={license.state}
+                updateState={updater.state}
+                onCheckUpdate={() => void updater.check(false)}
+                onInstallUpdate={updater.install}
+                onRestartApp={updater.restart}
                 onActivateLicense={() => setLicenseModalOpen(true)}
                 onDeactivateLicense={async () => {
                   try {

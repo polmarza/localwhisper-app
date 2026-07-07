@@ -1088,6 +1088,56 @@ kbd {
 }
 .shortcut-select:focus { border-color: var(--accent); }
 
+/* Update banner ---------------------------------------------------------- */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.update-banner strong { font-weight: 600; }
+.update-banner-actions { display: inline-flex; gap: 8px; flex-shrink: 0; }
+.update-banner-btn {
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.update-banner-btn.primary { background: var(--accent); color: var(--accent-ink); }
+.update-banner-btn.primary:hover { filter: brightness(1.05); }
+.update-banner-btn.ghost { background: transparent; color: var(--ink-2); border-color: var(--line); }
+.update-banner-btn.ghost:hover { background: var(--surface); }
+.update-banner-progress {
+  flex: 1;
+  min-width: 120px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sidebar-2);
+  overflow: hidden;
+}
+.update-banner-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+.update-banner-progress-fill[data-indeterminate="true"] {
+  animation: update-indeterminate 1.1s ease-in-out infinite;
+}
+@keyframes update-indeterminate {
+  0% { margin-left: -40%; }
+  100% { margin-left: 100%; }
+}
+
 
 /* Trial banner ----------------------------------------------------------- */
 

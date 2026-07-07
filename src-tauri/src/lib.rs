@@ -1,4 +1,5 @@
 mod license;
+mod updater;
 mod usage;
 
 use std::path::PathBuf;
@@ -802,6 +803,7 @@ fn set_shortcut(app: tauri::AppHandle, accelerator: String) -> Result<(), String
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -880,6 +882,9 @@ pub fn run() {
             license::license_deactivate,
             usage::usage_get_state,
             usage::usage_add_words,
+            updater::check_for_update,
+            updater::install_update,
+            updater::restart_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

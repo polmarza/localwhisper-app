@@ -15,6 +15,12 @@ import {
 import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
 import { ShortcutSelect, useShortcutConfig } from "../components/ShortcutSelect";
 import {
+  getUpdateChannel,
+  setUpdateChannel,
+  type UpdateChannel,
+} from "../state/preferences";
+import type { UpdateState } from "../hooks/useUpdater";
+import {
   listAllTranscriptions,
   listDictionaryEntries,
 } from "../lib/db";
@@ -226,6 +232,62 @@ function SectionHead({
   );
 }
 
+function updateStatusHint(state?: UpdateState): string {
+  switch (state?.kind) {
+    case "available":
+      return `Hay una versión nueva disponible (${state.meta.version}).`;
+    case "downloading":
+      return "Descargando la actualización…";
+    case "installed":
+      return "Actualización instalada. Reinicia para aplicarla.";
+    case "uptodate":
+      return "Ya tienes la última versión.";
+    case "checking":
+      return "Buscando actualizaciones…";
+    case "error":
+      return "No se pudo comprobar. Revisa tu conexión.";
+    default:
+      return "Local Whisper se actualiza solo. Puedes comprobarlo tú mismo.";
+  }
+}
+
+function UpdateControl({
+  state,
+  onCheck,
+  onInstall,
+  onRestart,
+}: {
+  state?: UpdateState;
+  onCheck?: () => void;
+  onInstall?: () => void;
+  onRestart?: () => void;
+}) {
+  if (state?.kind === "available") {
+    return (
+      <Btn variant="accent" size="sm" onClick={onInstall}>
+        Actualizar a {state.meta.version}
+      </Btn>
+    );
+  }
+  if (state?.kind === "installed") {
+    return (
+      <Btn variant="accent" size="sm" onClick={onRestart}>
+        Reiniciar ahora
+      </Btn>
+    );
+  }
+  return (
+    <Btn
+      variant="ghost"
+      size="sm"
+      onClick={onCheck}
+      disabled={state?.kind === "checking" || state?.kind === "downloading"}
+    >
+      {state?.kind === "checking" ? "Buscando…" : "Buscar actualizaciones"}
+    </Btn>
+  );
+}
+
 export function SettingsScreen({
   activeModelFile,
   onModelChange,
@@ -242,6 +304,10 @@ export function SettingsScreen({
   onTextScaleChange,
   initialSection = "general",
   licenseState,
+  updateState,
+  onCheckUpdate,
+  onInstallUpdate,
+  onRestartApp,
   onActivateLicense,
   onDeactivateLicense,
 }: {
@@ -260,6 +326,10 @@ export function SettingsScreen({
   onTextScaleChange?: (n: number) => void;
   initialSection?: SettingsSection;
   licenseState?: LicenseState | null;
+  updateState?: UpdateState;
+  onCheckUpdate?: () => void;
+  onInstallUpdate?: () => void;
+  onRestartApp?: () => void;
   onActivateLicense?: () => void;
   onDeactivateLicense?: () => Promise<void> | void;
 } = {}) {
@@ -277,6 +347,14 @@ export function SettingsScreen({
   const [sounds, setSoundsState] = useState(() => getSounds());
   const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
   const shortcut = useShortcutConfig();
+  const [updateChannel, setUpdateChannelState] = useState<UpdateChannel>(() =>
+    getUpdateChannel(),
+  );
+  const persistUpdateChannel = (beta: boolean) => {
+    const ch: UpdateChannel = beta ? "preview" : "stable";
+    setUpdateChannel(ch);
+    setUpdateChannelState(ch);
+  };
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -511,6 +589,23 @@ export function SettingsScreen({
                 >
                   Reiniciar
                 </Btn>
+              </Row>
+              <Row
+                label="Actualizaciones"
+                hint={updateStatusHint(updateState)}
+              >
+                <UpdateControl
+                  state={updateState}
+                  onCheck={onCheckUpdate}
+                  onInstall={onInstallUpdate}
+                  onRestart={onRestartApp}
+                />
+              </Row>
+              <Row
+                label="Recibir versiones beta"
+                hint="Prueba antes las novedades (previews). Pueden ser menos estables."
+              >
+                <Toggle on={updateChannel === "preview"} onChange={persistUpdateChannel} />
               </Row>
             </Card>
           )}

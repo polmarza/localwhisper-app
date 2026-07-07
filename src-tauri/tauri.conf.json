@@ -49,6 +49,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -59,6 +60,14 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "entitlements": "entitlements.plist"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://downloads.localwhisper.app/updates/stable.json"
+      ],
+      "pubkey": "REEMPLAZAR_CON_LA_CLAVE_PUBLICA_DEL_UPDATER"
     }
   }
 }
