@@ -5,7 +5,14 @@
 const KEY_THEME = "localwhisper.theme";
 const KEY_MODE = "localwhisper.themeMode";
 
-export type ThemeId = "arena" | "pizarra" | "bosque";
+export type ThemeId =
+  | "pizarra"
+  | "arena"
+  | "bosque"
+  | "coral"
+  | "medianoche"
+  | "oceano"
+  | "mono";
 export type ThemeMode = "light" | "dark";
 
 export type Theme = {
@@ -50,10 +57,50 @@ export const THEMES: Theme[] = [
       dark: { bg: "#161a16" },
     },
   },
+  {
+    id: "coral",
+    label: "Coral",
+    accent: "#e0603c",
+    premium: true,
+    preview: {
+      light: { bg: "#fdf6f3" },
+      dark: { bg: "#211a17" },
+    },
+  },
+  {
+    id: "medianoche",
+    label: "Medianoche",
+    accent: "#4f8bff",
+    premium: true,
+    preview: {
+      light: { bg: "#f2f4f8" },
+      dark: { bg: "#0b0f1a" },
+    },
+  },
+  {
+    id: "oceano",
+    label: "Océano",
+    accent: "#0d9488",
+    premium: true,
+    preview: {
+      light: { bg: "#f0f7f6" },
+      dark: { bg: "#0e1817" },
+    },
+  },
+  {
+    id: "mono",
+    label: "Blanco y negro",
+    accent: "#808080",
+    premium: true,
+    preview: {
+      light: { bg: "#f6f6f6" },
+      dark: { bg: "#131313" },
+    },
+  },
 ];
 
 // Pizarra is the only theme available without a license — it's the free
-// default. Arena and bosque are premium (unlocked during trial / with a key).
+// default. Every other theme is premium (unlocked during trial / with a key).
 const DEFAULT_THEME: ThemeId = "pizarra";
 const DEFAULT_MODE: ThemeMode = "light";
 

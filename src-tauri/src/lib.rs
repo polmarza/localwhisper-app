@@ -259,6 +259,11 @@ async fn transcribe_audio(
     model_file: String,
     // BCP-47 language hint ("es", "en", or "auto").
     language: Option<String>,
+    // Optional context from the previous segment (VAD streaming), fed to
+    // whisper as its initial prompt so it continues naturally — keeps
+    // punctuation/casing consistent instead of treating each segment as a fresh
+    // standalone sentence. `None` for normal whole-clip transcription.
+    prompt: Option<String>,
 ) -> Result<String, String> {
     if pcm_bytes.is_empty() {
         return Err("La grabación está vacía.".into());
@@ -289,14 +294,22 @@ async fn transcribe_audio(
 
     let language = language.unwrap_or_else(|| "es".into());
 
-    // 500 ms of leading zeros — whisper.cpp routinely drops the first 1-2 s
-    // of speech without this calibration window because it treats the
-    // leading audio as "this might be silence". The user can't hear the pad.
-    const PADDING_MS: usize = 500;
-    let pad_samples = 16_000 * PADDING_MS / 1_000;
-    let mut padded = Vec::with_capacity(pad_samples + samples.len());
-    padded.extend(std::iter::repeat(0.0_f32).take(pad_samples));
+    // Pad with silence on BOTH ends (the user can't hear it):
+    //   - Leading: whisper.cpp routinely drops the first 1-2 s of speech
+    //     without this calibration window (it treats the start as "might be
+    //     silence").
+    //   - Trailing: symmetrically, it clips the LAST word when the audio ends
+    //     abruptly on speech — i.e. when the user stops the instant they finish
+    //     talking. The trailing silence gives it the context to emit the final
+    //     segment.
+    const LEAD_PAD_MS: usize = 500;
+    const TRAIL_PAD_MS: usize = 500;
+    let lead = 16_000 * LEAD_PAD_MS / 1_000;
+    let trail = 16_000 * TRAIL_PAD_MS / 1_000;
+    let mut padded = Vec::with_capacity(lead + samples.len() + trail);
+    padded.extend(std::iter::repeat(0.0_f32).take(lead));
     padded.extend(samples);
+    padded.extend(std::iter::repeat(0.0_f32).take(trail));
 
     // Shared handle to the cached context — cloned out here so it can move into
     // the blocking task.
@@ -315,7 +328,7 @@ async fn transcribe_audio(
                 _ => {
                     let ctx = Arc::new(
                         WhisperContext::new_with_params(
-                            &model_path.to_string_lossy(),
+                            &model_path,
                             WhisperContextParameters::default(),
                         )
                         .map_err(|e| format!("Cargando modelo Whisper: {e}"))?,
@@ -358,21 +371,31 @@ async fn transcribe_audio(
             .unwrap_or(4);
         params.set_n_threads(n_threads);
 
+        // Continuity for VAD streaming: feed the tail of what we've transcribed
+        // so far as the initial prompt. set_initial_prompt panics on interior
+        // null bytes, so strip them first.
+        let clean_prompt = prompt.as_deref().map(str::trim).filter(|p| !p.is_empty());
+        if let Some(p) = clean_prompt {
+            params.set_initial_prompt(&p.replace('\0', " "));
+        }
+
         state
             .full(params, &padded)
             .map_err(|e| format!("Transcribiendo audio: {e}"))?;
 
-        let n_segments = state
-            .full_n_segments()
-            .map_err(|e| format!("Leyendo resultado: {e}"))?;
+        // whisper-rs 0.16: full_n_segments returns i32 directly, and segment
+        // text is read via get_segment(i) -> WhisperSegment::to_str_lossy().
+        let n_segments = state.full_n_segments();
 
         let mut out = String::new();
         for i in 0..n_segments {
-            let seg = state
-                .full_get_segment_text(i)
-                .map_err(|e| format!("Leyendo segmento {i}: {e}"))?;
-            out.push_str(seg.trim());
-            out.push(' ');
+            if let Some(seg) = state.get_segment(i) {
+                let text = seg
+                    .to_str_lossy()
+                    .map_err(|e| format!("Leyendo segmento {i}: {e}"))?;
+                out.push_str(text.trim());
+                out.push(' ');
+            }
         }
 
         Ok(strip_whisper_markers(&out))

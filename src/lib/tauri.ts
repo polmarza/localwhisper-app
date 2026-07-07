@@ -15,7 +15,10 @@ export type ProgressEvent =
 export async function transcribeAudio(
   pcm: Float32Array,
   modelFile: string,
-  language: string = "es"
+  language: string = "es",
+  // Optional context (previous text) fed to whisper as its initial prompt —
+  // used by VAD streaming to keep segments continuous. Omit for whole-clip.
+  prompt?: string
 ): Promise<string> {
   // The Rust command takes raw bytes — send the underlying buffer reinterpreted
   // as a u8[]. We send through invoke (Tauri serializes Uint8Array efficiently).
@@ -24,6 +27,7 @@ export async function transcribeAudio(
     pcmBytes: Array.from(bytes),
     modelFile,
     language,
+    prompt: prompt ?? null,
   });
 }
 

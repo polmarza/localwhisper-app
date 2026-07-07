@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  IconAa,
   IconArrowDn,
   IconCheck,
   IconCog,
@@ -11,7 +12,7 @@ import {
   IconLock,
   IconShield,
 } from "../components/Icons";
-import { Btn, Card, Kbd, NavItem, Pill, Waveform, inputStyle } from "../components/Ui";
+import { Btn, Card, Kbd, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
 import {
   listAllTranscriptions,
   listDictionaryEntries,
@@ -20,12 +21,15 @@ import { addInstalledTier, getInstalledTiers } from "../state/onboarding";
 import { downloadWhisperModel, type ProgressEvent } from "../lib/tauri";
 import {
   getAutopaste,
+  getSounds,
   getStoreLocal,
-  getVadStreaming,
+  getTranscriptFont,
   setAutopaste,
+  setSounds,
   setStoreLocal,
-  setVadStreaming,
+  setTranscriptFont,
   TEXT_SCALES,
+  type TranscriptFont,
 } from "../state/preferences";
 import {
   THEMES,
@@ -56,6 +60,7 @@ const LANGUAGES: Array<{ code: string; label: string }> = [
 
 const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
   { id: "general", label: "General", icon: <IconCog size={15} /> },
+  { id: "personalizacion", label: "Personalización", icon: <IconAa size={15} /> },
   { id: "audio", label: "Audio y micrófono", icon: <IconHeadset size={15} /> },
   { id: "model", label: "Modelo local", icon: <IconShield size={15} /> },
   { id: "languages", label: "Idiomas", icon: <IconGlobe size={15} /> },
@@ -66,6 +71,7 @@ const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: React
 
 export type SettingsSection =
   | "general"
+  | "personalizacion"
   | "audio"
   | "model"
   | "languages"
@@ -276,7 +282,8 @@ export function SettingsScreen({
   // on the next dictation).
   const [autopaste, setAutopasteState] = useState(() => getAutopaste());
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
-  const [vadStreaming, setVadStreamingState] = useState(() => getVadStreaming());
+  const [sounds, setSoundsState] = useState(() => getSounds());
+  const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -286,9 +293,14 @@ export function SettingsScreen({
     setStoreLocalState(v);
     setStoreLocal(v);
   };
-  const persistVadStreaming = (v: boolean) => {
-    setVadStreamingState(v);
-    setVadStreaming(v);
+  const persistSounds = (v: boolean) => {
+    setSoundsState(v);
+    setSounds(v);
+  };
+  const persistFont = (v: TranscriptFont) => {
+    setFontState(v);
+    setTranscriptFont(v);
+    document.body.setAttribute("data-font", v);
   };
 
   const [installedTiers, setInstalledTiers] = useState<string[]>(() =>
@@ -471,7 +483,7 @@ export function SettingsScreen({
           </nav>
         </Card>
 
-        <div className="scroll" style={{ overflowY: "auto" }}>
+        <div className="scroll" style={{ overflowY: "auto", minWidth: 0 }}>
           {section === "general" && (
             <Card padding={0}>
               <SectionHead title="General" />
@@ -480,121 +492,24 @@ export function SettingsScreen({
                 hint="Local Whisper estará disponible nada más arrancar tu Mac."
                 preview={<Toggle on={false} onChange={() => {}} />}
               />
-              <ComingSoonRow
+              <Row
                 label="Sonidos"
                 hint="Reproduce un ‘pop’ al empezar y terminar la grabación."
-                preview={<Toggle on={false} onChange={() => {}} />}
-              />
+              >
+                <Toggle on={sounds} onChange={persistSounds} />
+              </Row>
               <Row
                 label="Pegar automáticamente"
                 hint="Inserta el texto en la app activa al terminar de transcribir."
               >
                 <Toggle on={autopaste} onChange={persistAutopaste} />
               </Row>
-              <Row
-                label="Transcripción en directo"
-                hint="Transcribe mientras hablas, troceando por silencios, para que al parar apenas haya espera. Ideal para dictados largos. Función premium."
-              >
-                {premium ? (
-                  <Toggle on={vadStreaming} onChange={persistVadStreaming} />
-                ) : (
-                  <Btn
-                    size="sm"
-                    variant="ghost"
-                    icon={<IconLock size={13} />}
-                    onClick={() => onActivateLicense?.()}
-                  >
-                    Premium
-                  </Btn>
-                )}
-              </Row>
-              <Row
-                label="Tema"
-                hint="Cambia la paleta de colores de la aplicación. El cambio se aplica al instante."
-              >
-                <div style={{ display: "flex", gap: 10 }}>
-                  {THEMES.map((t) => {
-                    const active = theme === t.id;
-                    const bg = t.preview[mode].bg;
-                    const locked = isPremiumTheme(t.id) && !premium;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() =>
-                          locked ? onActivateLicense?.() : onThemeChange?.(t.id)
-                        }
-                        title={locked ? `${t.label} · función premium` : t.label}
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "stretch",
-                          gap: 8,
-                          padding: 0,
-                          width: 92,
-                          borderRadius: 10,
-                          border: `2px solid ${
-                            active ? "var(--accent)" : "var(--line)"
-                          }`,
-                          background: "var(--surface)",
-                          cursor: "pointer",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: 44,
-                            background: bg,
-                            position: "relative",
-                          }}
-                        >
-                          <span
-                            style={{
-                              position: "absolute",
-                              right: 10,
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              width: 16,
-                              height: 16,
-                              borderRadius: "50%",
-                              background: t.accent,
-                              boxShadow: "0 0 0 2px rgba(0,0,0,.04)",
-                            }}
-                          />
-                          {locked && (
-                            <span
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                background: "rgba(0,0,0,.28)",
-                                color: "#fff",
-                              }}
-                            >
-                              <IconLock size={15} />
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11.5,
-                            fontWeight: 500,
-                            color: mode === "dark" ? "#ffffff" : active ? "var(--accent)" : "var(--ink-2)",
-                            textAlign: "center",
-                            padding: "4px 6px 8px",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {t.label}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Row>
+            </Card>
+          )}
+
+          {section === "personalizacion" && (
+            <Card padding={0}>
+              <SectionHead title="Personalización" />
               <Row
                 label="Modo"
                 hint="Alterna entre paleta clara y oscura."
@@ -682,6 +597,162 @@ export function SettingsScreen({
                   })}
                 </div>
               </Row>
+              <Row
+                label="Tipografía del historial"
+                hint="Cómo se lee el texto de tus transcripciones."
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    gap: 4,
+                    padding: 4,
+                    background: "var(--sidebar-2)",
+                    borderRadius: 8,
+                  }}
+                >
+                  {(["sans", "mono"] as TranscriptFont[]).map((f) => {
+                    const active = font === f;
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => persistFont(f)}
+                        style={{
+                          height: 30,
+                          padding: "0 16px",
+                          border: 0,
+                          background: active ? "var(--surface)" : "transparent",
+                          color: active ? "var(--ink)" : "var(--ink-3)",
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontFamily:
+                            f === "mono" ? "'JetBrains Mono', monospace" : "inherit",
+                          boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+                        }}
+                      >
+                        {f === "sans" ? "Sans" : "Mono"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Row>
+              <div
+                style={{
+                  padding: "16px 22px",
+                  borderBottom: "1px solid var(--line-2)",
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>
+                  Tema
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    marginTop: 3,
+                    lineHeight: 1.5,
+                    maxWidth: 480,
+                  }}
+                >
+                  Cambia la paleta de colores de la aplicación. El cambio se
+                  aplica al instante.
+                </div>
+                <div
+                  style={{
+                    marginTop: 14,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                    gap: 10,
+                  }}
+                >
+                  {THEMES.map((t) => {
+                    const active = theme === t.id;
+                    const bg = t.preview[mode].bg;
+                    const locked = isPremiumTheme(t.id) && !premium;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() =>
+                          locked ? onActivateLicense?.() : onThemeChange?.(t.id)
+                        }
+                        title={locked ? `${t.label} · función premium` : t.label}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "stretch",
+                          gap: 8,
+                          padding: 0,
+                          borderRadius: 10,
+                          border: `2px solid ${
+                            active ? "var(--accent)" : "var(--line)"
+                          }`,
+                          background: "var(--surface)",
+                          cursor: "pointer",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: 44,
+                            background: bg,
+                            position: "relative",
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              right: 10,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              width: 16,
+                              height: 16,
+                              borderRadius: "50%",
+                              background: t.accent,
+                              boxShadow: "0 0 0 2px rgba(0,0,0,.04)",
+                            }}
+                          />
+                          {isPremiumTheme(t.id) && (
+                            <ProTag
+                              style={{ position: "absolute", top: 6, left: 6 }}
+                            />
+                          )}
+                          {locked && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "rgba(0,0,0,.28)",
+                                color: "#fff",
+                              }}
+                            >
+                              <IconLock size={15} />
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: 500,
+                            color: mode === "dark" ? "#ffffff" : active ? "var(--accent)" : "var(--ink-2)",
+                            textAlign: "center",
+                            padding: "4px 6px 8px",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {t.label}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </Card>
           )}
 

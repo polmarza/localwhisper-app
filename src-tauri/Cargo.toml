@@ -37,7 +37,10 @@ sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"
 objc = "0.2"
-whisper-rs = { version = "0.13", features = ["metal"] }
+# 0.16 bundles a much newer whisper.cpp; 0.13's Metal shaders no longer compile
+# on current macOS Metal toolchains (ggml_backend_metal_init fails → silent CPU
+# fallback → very slow). See lib.rs transcribe_audio.
+whisper-rs = { version = "0.16", features = ["metal"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-whisper-rs = "0.13"
+whisper-rs = "0.16"

@@ -16,9 +16,9 @@ URL R2 directa (de fallback): `https://pub-8d451576d7ae4f518721218aafa5c847.r2.d
 Los tres modelos actuales:
 | Tier | Archivo | Tamaño |
 |---|---|---|
-| Ligera | `ggml-small-q5_1.bin` | ~181 MB |
-| Equilibrada | `ggml-large-v3-turbo-q5_0.bin` | ~548 MB |
-| Máxima | `ggml-large-v3-turbo-q8_0.bin` | ~834 MB |
+| Ligero | `ggml-small-q5_1.bin` | ~181 MB |
+| Equilibrado | `ggml-large-v3-turbo-q5_0.bin` | ~548 MB |
+| Máximo | `ggml-large-v3-turbo-q8_0.bin` | ~834 MB |
 
 Las URLs y nombres de archivo están definidos en `src/state/tiers.ts`.
 
@@ -44,13 +44,28 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 
 - **Contexto Whisper cacheado** en `src-tauri/src/lib.rs` (`WhisperCache` en el estado de Tauri). El modelo (0,5–0,8 GB) se carga de disco **una vez por modelo**, no en cada dictado. Antes se releía cada vez → era la causa principal del "congelón al parar".
 - **Todos los núcleos:** `set_n_threads(available_parallelism)` en lugar del default de 4.
-- **Transcripción en directo (VAD streaming):** toggle opcional en Ajustes → General (pref `localwhisper.vadStreaming`, **off por defecto**). **Es función premium** — el toggle sale con candado si no hay premium, y `useRecorder` recibe `streamingAllowed={premium}` para no usarlo aunque la pref quede en `true` tras caducar el trial. Implementado en `src/hooks/useRecorder.ts`: VAD por energía (RMS) que trocea el audio por silencios y transcribe cada segmento en una cola secuencial *mientras* el usuario habla, así al parar solo queda la cola final. Ensambla el texto y lo pega una vez al terminar (no incremental). Tunables al inicio del archivo (`VAD_RMS_THRESHOLD`, `VAD_SILENCE_HANGOVER_MS`, etc.).
+- **GPU (Metal) en Mac:** `whisper-rs = "0.16"` con feature `metal` (`src-tauri/Cargo.toml`). ⚠️ La 0.13 traía un whisper.cpp cuyos shaders Metal ya no compilaban en macOS actual → `ggml_backend_metal_init() failed` → caía a CPU en silencio (transcripción lentísima). En **Windows/Linux** whisper-rs va **sin** metal → **CPU** (más lento); por eso `recommendTier()` en `tiers.ts` recomienda **Ligera** por defecto ahí y `tierWarning()` avisa al elegir modelos grandes. Pendiente: CUDA/Vulkan para Windows.
+- **Transcripción en directo (VAD streaming): RETIRADA/OCULTA.** Existía para disimular la lentitud (que ya está resuelta con Metal). Trocear degrada la calidad (whisper detecta mal el idioma en segmentos cortos y descarta trozos), así que está **desactivada** vía `VAD_STREAMING_ENABLED = false` en `src/hooks/useRecorder.ts` y **sin toggle** en Ajustes. La implementación (VAD por energía RMS + cola secuencial + `initial_prompt` de continuidad) se conserva por si se retoma (p. ej. para Windows). Para reactivar: poner el flag a `true` y restaurar la Row en `Settings.tsx`.
+  - **Calidad de puntuación:** trocear tiene el efecto secundario de "un punto por pausa" (whisper puntúa cada segmento como frase completa). Se mitiga con: umbral de silencio alto (~1 s, `VAD_SILENCE_HANGOVER_MS`, solo corta en fin de frase) + pasar el texto previo como `initial_prompt` a whisper (`transcribe_audio` acepta `prompt`, se manda la cola de `partsRef`). Aun así, el **modo normal (todo de golpe al parar) es el más limpio en puntuación y es el default** — el streaming es opcional para dictados largos.
+- **Relleno de silencio:** `transcribe_audio` añade 500 ms de ceros al inicio **y al final** del audio. Sin el del final, whisper se come la última palabra cuando paras justo al terminar de hablar (igual que se comía la primera sin el del inicio).
 
 ## Temas
-- 3 temas × 2 modos: `arena`, `pizarra`, `bosque` en `light` y `dark`
-- CSS aplicado vía `body[data-palette="${id}-${mode}"]`
-- Definidos en `src/state/theme.ts` y `src/styles/global.css`
+- 7 temas × 2 modos: `pizarra` (gratis, default), `arena`, `bosque`, `coral`, `medianoche`, `oceano`, `mono` ("Blanco y negro") en `light` y `dark`. Todos menos `pizarra` son premium.
+- CSS aplicado vía `body[data-palette="${id}-${mode}"]` — cada tema = 2 bloques (light+dark) con ~19 variables en `src/styles/global.css`. Al añadir uno hay que tocar además el grupo `--dot-rest` y la línea de `background` de scrollbar.
+- Definidos en `src/state/theme.ts` (array `THEMES`, tipo `ThemeId`) y `src/styles/global.css`
 - Las dos claves de localStorage: `localwhisper.theme` y `localwhisper.themeMode`
+- **Ajustes → Personalización** (sección propia): Modo, Tamaño de texto, **Tipografía** y Temas. El tamaño de texto por defecto es "Muy grande" (`DEFAULT_TEXT_SCALE = 1.3` en `preferences.ts`).
+- **Tipografía del historial:** pref `localwhisper.transcriptFont` (`sans`/`mono`) → `body[data-font]` → variable CSS `--transcript-font` (usada en el texto de las transcripciones en `Home.tsx`). Aplicada en `App.tsx` al arrancar; Settings actualiza el atributo al cambiar.
+- **Sonidos** (Ajustes → General, `localwhisper.sounds`, on por defecto): "pop" al empezar/parar grabación, sintetizado con Web Audio en `src/lib/sounds.ts` (sin assets), disparado desde `useRecorder`.
+
+## Diccionario
+
+Corrige cómo se escriben nombres/marcas/expresiones en la transcripción.
+
+- **Se aplica de verdad:** tras transcribir, `applyDictionary()` (`src/lib/dictionary.ts`) hace find/replace por **palabra completa, ignorando mayúsculas** (regex con lookarounds Unicode, así funciona con acentos), preservando la capitalización de inicio de frase. Se aplica en `App.tsx` `onResult` **antes** de pegar/guardar/contar palabras (cubre modo normal y streaming).
+- **Fuente única:** hook `useDictionary` (`src/hooks/useDictionary.ts`) → tabla SQLite `dictionary` (migración v2). CRUD en `src/lib/db.ts` (`add/list/update/deleteDictionaryEntry`). La pantalla (`src/screens/Dictionary.tsx`) y el popover de "seleccionar palabra del historial" (`src/screens/Home.tsx`) escriben en la **misma** tabla vía el hook.
+- Campos: `term` ("cuando oigas") → `replacement` ("escribe") + `notes` opcional. **Sin categorías** (se quitaron por confusas; la columna `category`/`uses` sigue en la BD pero no se usa en la UI).
+- ⚠️ Antes esto estaba a medias: la pantalla mostraba 12 entradas hardcodeadas y no se aplicaba nada. Ya no.
 
 ## Identificadores internos
 - Bundle ID: `com.localwhisper.app`
@@ -62,7 +77,7 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 
 ### Modelo
 - **Freemium con tope semanal:** la transcripción es gratis pero **limitada a 2.000 palabras/semana** para usuarios sin licencia (modelo estilo Wispr Flow). El trial y la licencia dan transcripción **ilimitada**. Al agotar el tope, se bloquea *iniciar* un dictado nuevo (upsell) hasta que se renueva la semana o se activa una clave.
-- **Premium (trial o licencia) desbloquea:** transcripción ilimitada + la pantalla de **Estadísticas** (`insights`) + los **temas `arena` y `bosque`** + la **transcripción en directo (VAD streaming)**. El tema `pizarra` es el gratuito por defecto.
+- **Premium (trial o licencia) desbloquea:** transcripción ilimitada + la pantalla de **Estadísticas** (`insights`) + los **temas `arena` y `bosque`**. El tema `pizarra` es el gratuito por defecto. (La transcripción en directo era premium, pero está **retirada/oculta** — ver Rendimiento.)
 - **14 días de trial premium:** durante los primeros 14 días todo va sin límites. Al caducar sin clave válida → tope de 2.000 palabras/semana y se bloquean Estadísticas / VAD / arena·bosque (fallback automático a `pizarra`).
 - **Pago único lifetime** vía Lemon Squeezy (**precio de salida 29 €**, a subir más adelante).
 - **3 activaciones por licencia** (configurado en el dashboard de LS)

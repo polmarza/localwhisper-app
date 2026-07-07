@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { transcribeAudio } from "../lib/tauri";
-import { getVadStreaming } from "../state/preferences";
+import { getSounds, getVadStreaming } from "../state/preferences";
+import { playStartSound, playStopSound } from "../lib/sounds";
 
 // 16 kHz mono f32 — what whisper.cpp expects.
 const TARGET_SAMPLE_RATE = 16_000;
 const BUFFER_SIZE = 4096;
+
+// VAD streaming is retired for now: it only existed to mask slow transcription,
+// which is fixed (Metal on Mac). Chunking hurts quality (whisper mis-detects
+// language and drops short segments), so it's disabled and hidden from the UI.
+// The implementation is kept below for a possible future revisit (e.g. Windows
+// CPU). Flip this to true (and restore the Settings toggle) to re-enable.
+const VAD_STREAMING_ENABLED = false;
 
 // --- VAD streaming tunables ------------------------------------------------
 // Energy-based voice activity detection. A frame whose RMS is above the
@@ -12,7 +20,11 @@ const BUFFER_SIZE = 4096;
 // which is transcribed while the user keeps talking. Splitting on silence (not
 // on a fixed clock) means we never cut a word mid-way.
 const VAD_RMS_THRESHOLD = 0.01;
-const VAD_SILENCE_HANGOVER_MS = 600; // silence after speech that closes a segment
+// ~1 s of silence closes a segment. Kept high on purpose: short mid-sentence
+// hesitations shouldn't split a segment (each split becomes its own whisper
+// call, which whisper punctuates as a standalone sentence — a period at every
+// pause). At ~1 s we cut mostly on real end-of-sentence pauses.
+const VAD_SILENCE_HANGOVER_MS = 1000;
 const VAD_MIN_SEGMENT_MS = 1000; // don't auto-close segments shorter than this
 const VAD_MAX_SEGMENT_MS = 20_000; // force-close very long continuous speech
 
@@ -134,9 +146,17 @@ export function useRecorder(opts: {
     try {
       const audioConstraints: MediaTrackConstraints = {
         channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+        // Voice processing (echo cancellation / noise suppression / AGC) is
+        // deliberately OFF. On macOS, holding an always-warm mic *with* voice
+        // processing puts the system into "call" mode and ducks all other
+        // audio to ~half volume (and keeps the orange mic dot lit). Whisper
+        // dictation doesn't need echo cancellation, so we open a plain input
+        // instead — this keeps the mic pre-warmed (no re-acquire delay) without
+        // the ducking. If dictation quality suffers in noisy rooms we can
+        // revisit (e.g. release the mic on idle instead).
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
       };
       if (deviceId) {
         // exact forces the picked device; the browser errors out if it's gone
@@ -181,11 +201,14 @@ export function useRecorder(opts: {
       return;
     }
 
+    if (getSounds()) playStartSound();
+
     const processor = ctx.createScriptProcessor(BUFFER_SIZE, 1, 1);
     processorRef.current = processor;
     chunksRef.current = [];
 
-    const streaming = getVadStreaming() && streamingAllowedRef.current;
+    const streaming =
+      VAD_STREAMING_ENABLED && getVadStreaming() && streamingAllowedRef.current;
     streamingRef.current = streaming;
 
     if (streaming) {
@@ -217,7 +240,11 @@ export function useRecorder(opts: {
           return;
         }
         busyRef.current = true;
-        transcribeAudio(next, modelFileRef.current, languageRef.current)
+        // Feed the tail of what we've transcribed so far as context so whisper
+        // continues the same sentence/flow instead of restarting punctuation.
+        const prior = partsRef.current.join(" ");
+        const prompt = prior ? prior.slice(-200) : undefined;
+        transcribeAudio(next, modelFileRef.current, languageRef.current, prompt)
           .then((text) => {
             const t = text.trim();
             if (t) partsRef.current.push(t);
@@ -307,6 +334,7 @@ export function useRecorder(opts: {
 
   const stop = useCallback(async () => {
     if (status !== "recording") return;
+    if (getSounds()) playStopSound();
     const ctx = audioCtxRef.current;
     const chunks = chunksRef.current;
     const startTs = startTsRef.current;

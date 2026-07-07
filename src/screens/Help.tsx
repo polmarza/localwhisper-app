@@ -393,11 +393,11 @@ const FAQ_ITEMS: Array<{ q: string; a: ReactNode }> = [
   },
   {
     q: "¿Cuánto ocupa cada modelo en disco?",
-    a: "Depende del que elijas: Ligera (181 MB), Equilibrada (548 MB) o Máxima (834 MB). La app en sí pesa menos de 30 MB. Puedes cambiar de modelo cuando quieras desde Ajustes → Modelo local.",
+    a: "Depende del que elijas: Ligero (181 MB), Equilibrado (548 MB) o Máximo (834 MB). La app en sí pesa menos de 30 MB. Puedes cambiar de modelo cuando quieras desde Ajustes → Modelo local.",
   },
   {
     q: "¿En qué sistemas funciona?",
-    a: "macOS, Windows y Linux. Recomendamos equipos con al menos 8 GB de RAM. Para el modelo Máxima, lo ideal son 16 GB o más.",
+    a: "macOS, Windows y Linux. Recomendamos equipos con al menos 8 GB de RAM. Para el modelo Máximo, lo ideal son 16 GB o más.",
   },
   {
     q: "¿Cómo añado palabras técnicas o nombres propios?",

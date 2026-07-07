@@ -150,6 +150,31 @@ export function Btn({
   );
 }
 
+/** Small "Pro" chip marking a premium feature. Always shown (even in trial) so
+ *  users can see what's premium. */
+export function ProTag({ style }: { style?: CSSProperties }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        fontSize: 9.5,
+        fontWeight: 700,
+        letterSpacing: ".06em",
+        textTransform: "uppercase",
+        padding: "1px 5px",
+        borderRadius: 4,
+        background: "var(--accent)",
+        color: "var(--accent-ink)",
+        lineHeight: 1.5,
+        ...style,
+      }}
+    >
+      Pro
+    </span>
+  );
+}
+
 export function Kbd({ children }: { children: ReactNode }) {
   return (
     <span

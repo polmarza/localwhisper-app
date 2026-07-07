@@ -124,3 +124,21 @@ export async function listDictionaryEntries(): Promise<DictionaryEntry[]> {
      ORDER BY created_at DESC`,
   );
 }
+
+export async function updateDictionaryEntry(args: {
+  id: number;
+  term: string;
+  replacement: string;
+  notes?: string | null;
+}): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    `UPDATE dictionary SET term = $1, replacement = $2, notes = $3 WHERE id = $4`,
+    [args.term, args.replacement, args.notes ?? null, args.id],
+  );
+}
+
+export async function deleteDictionaryEntry(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute(`DELETE FROM dictionary WHERE id = $1`, [id]);
+}
