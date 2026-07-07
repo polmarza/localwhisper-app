@@ -28,6 +28,8 @@ tokio = { version = "1", features = ["fs", "io-util", "sync", "time"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+tauri-plugin-updater = "2.10.1"
+url = "2.5.8"
 
 # whisper.cpp bindings — split per platform because the `metal` feature drags
 # in macOS-only frameworks (Foundation) that don't exist on Linux/Windows.

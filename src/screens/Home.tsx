@@ -502,10 +502,12 @@ export function HomeScreen({
             whiteSpace: "nowrap",
           }}
         >
-          Bienvenido,{" "}
-          <span className="serif" style={{ fontSize: 26, fontStyle: "italic" }}>
-            {userName}
-          </span>
+          Bienvenido{userName ? "," : ""}{" "}
+          {userName && (
+            <span className="serif" style={{ fontSize: 26, fontStyle: "italic" }}>
+              {userName}
+            </span>
+          )}
         </h2>
         <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>
           {todayLabel}

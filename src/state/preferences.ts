@@ -11,6 +11,9 @@ const KEY_LANGUAGE = "localwhisper.language";
 const KEY_MIC_DEVICE = "localwhisper.micDeviceId";
 const KEY_TEXT_SCALE = "localwhisper.textScale";
 const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
+const KEY_USER_NAME = "localwhisper.userName";
+const KEY_SHORTCUT = "localwhisper.shortcut";
+const KEY_UPDATE_CHANNEL = "localwhisper.updateChannel";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -79,6 +82,67 @@ export function getLanguage(): string {
 export function setLanguage(code: string) {
   try {
     localStorage.setItem(KEY_LANGUAGE, code);
+  } catch {
+    // ignore
+  }
+}
+
+// Nombre del usuario, capturado en el onboarding. Vacío si aún no lo ha dado
+// (los saludos hacen fallback a un texto genérico en vez de un nombre real).
+export function getUserName(): string {
+  try {
+    return (localStorage.getItem(KEY_USER_NAME) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setUserName(name: string) {
+  try {
+    const trimmed = name.trim();
+    if (trimmed) localStorage.setItem(KEY_USER_NAME, trimmed);
+    else localStorage.removeItem(KEY_USER_NAME);
+  } catch {
+    // ignore
+  }
+}
+
+// Atajo global de dictado, en formato del plugin de Tauri ("Alt+Space",
+// "Ctrl+Alt+D", …). Vacío = usar el default por plataforma que registra Rust.
+export function getShortcutPref(): string {
+  try {
+    return (localStorage.getItem(KEY_SHORTCUT) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setShortcutPref(accelerator: string) {
+  try {
+    if (accelerator) localStorage.setItem(KEY_SHORTCUT, accelerator);
+    else localStorage.removeItem(KEY_SHORTCUT);
+  } catch {
+    // ignore
+  }
+}
+
+// Canal de actualizaciones:
+//   - "stable":  solo versiones estables (default).
+//   - "preview": también recibe betas (previews). Toggle "Recibir versiones
+//                beta" en Ajustes → General.
+export type UpdateChannel = "stable" | "preview";
+
+export function getUpdateChannel(): UpdateChannel {
+  try {
+    return localStorage.getItem(KEY_UPDATE_CHANNEL) === "preview" ? "preview" : "stable";
+  } catch {
+    return "stable";
+  }
+}
+
+export function setUpdateChannel(channel: UpdateChannel) {
+  try {
+    localStorage.setItem(KEY_UPDATE_CHANNEL, channel);
   } catch {
     // ignore
   }

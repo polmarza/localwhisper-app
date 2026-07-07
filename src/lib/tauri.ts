@@ -53,6 +53,16 @@ export async function openUrl(url: string): Promise<void> {
   return invoke("open_url", { url });
 }
 
+/**
+ * Configura el atajo global de dictado, en formato del plugin de Tauri
+ * ("Alt+Space", "Ctrl+Alt+D", …). Rechaza (throw) si la combinación no se
+ * puede registrar (en uso por otra app) — la UI revierte el desplegable y
+ * avisa, sin dejar al usuario sin atajo (el anterior sigue activo).
+ */
+export async function setShortcut(accelerator: string): Promise<void> {
+  return invoke("set_shortcut", { accelerator });
+}
+
 export type PasteOutcome = {
   app: string | null;
   pasted: boolean;

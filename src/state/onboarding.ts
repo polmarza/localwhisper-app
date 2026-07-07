@@ -94,3 +94,18 @@ export function resetTutorial() {
     // ignore
   }
 }
+
+/** Fully resets onboarding as if the app had just been installed: clears the
+ *  "completed" flag, the selected model and the installed-tiers list. Used by
+ *  "Ver la introducción otra vez" in Ajustes — a real reinstall, not just a
+ *  replay, since the user explicitly wants to see the whole flow again
+ *  (including model selection). */
+export function resetOnboarding() {
+  try {
+    localStorage.removeItem(KEY_DONE);
+    localStorage.removeItem(KEY_MODEL);
+    localStorage.removeItem(KEY_INSTALLED);
+  } catch {
+    // ignore
+  }
+}

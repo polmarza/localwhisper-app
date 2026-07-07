@@ -12,12 +12,19 @@ import {
   IconLock,
   IconShield,
 } from "../components/Icons";
-import { Btn, Card, Kbd, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
+import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
+import { ShortcutSelect, useShortcutConfig } from "../components/ShortcutSelect";
+import {
+  getUpdateChannel,
+  setUpdateChannel,
+  type UpdateChannel,
+} from "../state/preferences";
+import type { UpdateState } from "../hooks/useUpdater";
 import {
   listAllTranscriptions,
   listDictionaryEntries,
 } from "../lib/db";
-import { addInstalledTier, getInstalledTiers } from "../state/onboarding";
+import { addInstalledTier, getInstalledTiers, resetOnboarding } from "../state/onboarding";
 import { downloadWhisperModel, type ProgressEvent } from "../lib/tauri";
 import {
   getAutopaste,
@@ -47,16 +54,7 @@ import {
 } from "../state/license";
 import { openUrl } from "../lib/tauri";
 
-const LANGUAGES: Array<{ code: string; label: string }> = [
-  { code: "auto", label: "Automático (detectar)" },
-  { code: "es", label: "Español" },
-  { code: "en", label: "Inglés" },
-  { code: "ca", label: "Catalán" },
-  { code: "pt", label: "Portugués" },
-  { code: "fr", label: "Francés" },
-  { code: "de", label: "Alemán" },
-  { code: "it", label: "Italiano" },
-];
+import { LANGUAGES } from "../state/languages";
 
 const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
   { id: "general", label: "General", icon: <IconCog size={15} /> },
@@ -234,6 +232,62 @@ function SectionHead({
   );
 }
 
+function updateStatusHint(state?: UpdateState): string {
+  switch (state?.kind) {
+    case "available":
+      return `Hay una versión nueva disponible (${state.meta.version}).`;
+    case "downloading":
+      return "Descargando la actualización…";
+    case "installed":
+      return "Actualización instalada. Reinicia para aplicarla.";
+    case "uptodate":
+      return "Ya tienes la última versión.";
+    case "checking":
+      return "Buscando actualizaciones…";
+    case "error":
+      return "No se pudo comprobar. Revisa tu conexión.";
+    default:
+      return "Local Whisper se actualiza solo. Puedes comprobarlo tú mismo.";
+  }
+}
+
+function UpdateControl({
+  state,
+  onCheck,
+  onInstall,
+  onRestart,
+}: {
+  state?: UpdateState;
+  onCheck?: () => void;
+  onInstall?: () => void;
+  onRestart?: () => void;
+}) {
+  if (state?.kind === "available") {
+    return (
+      <Btn variant="accent" size="sm" onClick={onInstall}>
+        Actualizar a {state.meta.version}
+      </Btn>
+    );
+  }
+  if (state?.kind === "installed") {
+    return (
+      <Btn variant="accent" size="sm" onClick={onRestart}>
+        Reiniciar ahora
+      </Btn>
+    );
+  }
+  return (
+    <Btn
+      variant="ghost"
+      size="sm"
+      onClick={onCheck}
+      disabled={state?.kind === "checking" || state?.kind === "downloading"}
+    >
+      {state?.kind === "checking" ? "Buscando…" : "Buscar actualizaciones"}
+    </Btn>
+  );
+}
+
 export function SettingsScreen({
   activeModelFile,
   onModelChange,
@@ -250,6 +304,10 @@ export function SettingsScreen({
   onTextScaleChange,
   initialSection = "general",
   licenseState,
+  updateState,
+  onCheckUpdate,
+  onInstallUpdate,
+  onRestartApp,
   onActivateLicense,
   onDeactivateLicense,
 }: {
@@ -268,6 +326,10 @@ export function SettingsScreen({
   onTextScaleChange?: (n: number) => void;
   initialSection?: SettingsSection;
   licenseState?: LicenseState | null;
+  updateState?: UpdateState;
+  onCheckUpdate?: () => void;
+  onInstallUpdate?: () => void;
+  onRestartApp?: () => void;
   onActivateLicense?: () => void;
   onDeactivateLicense?: () => Promise<void> | void;
 } = {}) {
@@ -284,6 +346,15 @@ export function SettingsScreen({
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
   const [sounds, setSoundsState] = useState(() => getSounds());
   const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
+  const shortcut = useShortcutConfig();
+  const [updateChannel, setUpdateChannelState] = useState<UpdateChannel>(() =>
+    getUpdateChannel(),
+  );
+  const persistUpdateChannel = (beta: boolean) => {
+    const ch: UpdateChannel = beta ? "preview" : "stable";
+    setUpdateChannel(ch);
+    setUpdateChannelState(ch);
+  };
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -503,6 +574,38 @@ export function SettingsScreen({
                 hint="Inserta el texto en la app activa al terminar de transcribir."
               >
                 <Toggle on={autopaste} onChange={persistAutopaste} />
+              </Row>
+              <Row
+                label="Ver la introducción otra vez"
+                hint="Repite la bienvenida completa: nombre, atajo, diccionario, tema y modelo. No pierdes tu historial ni tu licencia."
+              >
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    resetOnboarding();
+                    window.dispatchEvent(new CustomEvent("replay-onboarding"));
+                  }}
+                >
+                  Reiniciar
+                </Btn>
+              </Row>
+              <Row
+                label="Actualizaciones"
+                hint={updateStatusHint(updateState)}
+              >
+                <UpdateControl
+                  state={updateState}
+                  onCheck={onCheckUpdate}
+                  onInstall={onInstallUpdate}
+                  onRestart={onRestartApp}
+                />
+              </Row>
+              <Row
+                label="Recibir versiones beta"
+                hint="Prueba antes las novedades (previews). Pueden ser menos estables."
+              >
+                <Toggle on={updateChannel === "preview"} onChange={persistUpdateChannel} />
               </Row>
             </Card>
           )}
@@ -1059,17 +1162,21 @@ export function SettingsScreen({
             <Card padding={0}>
               <SectionHead
                 title="Atajos de teclado"
-                subtitle="Por ahora el atajo principal no es editable. La personalización llegará en una próxima versión."
+                subtitle="Elige la combinación que prefieras; se aplica al instante. Si ya está en uso por otra app, te avisamos."
               />
               <Row
                 label="Empezar a dictar"
-                hint="Pulsa para iniciar o detener una grabación desde cualquier app."
+                hint="Un toque para empezar a grabar y otro para terminar, desde cualquier app."
               >
-                <div style={{ display: "inline-flex", gap: 3 }}>
-                  <Kbd>⌥</Kbd>
-                  <Kbd>Espacio</Kbd>
-                </div>
+                <ShortcutSelect value={shortcut.accel} onChange={shortcut.setAccel} />
               </Row>
+              {shortcut.error && (
+                <div style={{ padding: "10px 20px 16px" }}>
+                  <span style={{ fontSize: 12.5, color: "var(--danger)" }}>
+                    {shortcut.error}
+                  </span>
+                </div>
+              )}
             </Card>
           )}
 

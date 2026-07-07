@@ -1,4 +1,5 @@
 mod license;
+mod updater;
 mod usage;
 
 use std::path::PathBuf;
@@ -760,13 +761,55 @@ fn frontmost_app_name() -> Option<String> {
     None
 }
 
+/// Acelerador global actualmente registrado para el dictado. Lo guardamos para
+/// poder cambiarlo en caliente sin dejar al usuario sin atajo si el nuevo falla.
+#[derive(Default)]
+struct ActiveShortcut(std::sync::Mutex<String>);
+
+/// Registra el atajo de dictado. Valida y registra el nuevo PRIMERO: si falla
+/// (combinación en uso por otra app), el actual sigue vivo y devolvemos Err
+/// con la causa. Solo cuando el nuevo entra bien quitamos el anterior.
+fn apply_shortcut(app: &tauri::AppHandle, accelerator: &str) -> Result<(), String> {
+    use std::str::FromStr;
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+    Shortcut::from_str(accelerator)
+        .map_err(|e| format!("atajo inválido «{accelerator}»: {e}"))?;
+
+    let gs = app.global_shortcut();
+    let state = app.state::<ActiveShortcut>();
+    let mut current = state
+        .0
+        .lock()
+        .map_err(|_| "estado de atajo bloqueado".to_string())?;
+    if *current == accelerator {
+        return Ok(());
+    }
+    gs.register(accelerator)
+        .map_err(|e| format!("no se pudo registrar «{accelerator}»: {e}"))?;
+    if !current.is_empty() {
+        let _ = gs.unregister(current.as_str());
+    }
+    *current = accelerator.to_string();
+    Ok(())
+}
+
+/// Comando expuesto al frontend: configura el atajo de dictado.
+#[tauri::command]
+fn set_shortcut(app: tauri::AppHandle, accelerator: String) -> Result<(), String> {
+    apply_shortcut(&app, &accelerator)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     use tauri_plugin_global_shortcut::ShortcutState;
+                    // Solo el atajo de dictado está registrado; al pulsarlo,
+                    // alternamos la grabación (pulsar para empezar / parar).
                     if event.state() == ShortcutState::Pressed {
                         if let Some(win) = app.get_webview_window("main") {
                             let _ = win.emit("toggle-recording", ());
@@ -781,20 +824,21 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            use tauri_plugin_global_shortcut::GlobalShortcutExt;
-            // Global recording shortcut, chosen per-platform to avoid clashing
-            // with OS-reserved combos:
-            //   - macOS:   Alt+Space → Option(⌥)+Space (no system conflict)
-            //   - Windows: Ctrl+Shift+Space (Win+Space switches keyboard layout;
-            //              Alt+Space opens the window control menu)
-            //   - Linux:   Ctrl+Shift+Space (Super+Space usually opens the app
-            //              launcher in GNOME/KDE)
-            // The user-visible label is kept in sync via `src/state/shortcuts.ts`.
+            // Atajos globales por defecto (el frontend aplica los guardados por
+            // el usuario al arrancar vía `set_shortcuts`):
+            //   - toggle (pulsar/pulsar):
+            //       macOS: Alt+Space (sin conflicto de sistema)
+            //       Win/Linux: Ctrl+Shift+Space (Alt+Space abre el menú de
+            //       ventana en Windows; Super+Space, el lanzador en Linux)
+            //   - hold (mantener pulsado / push-to-talk): Ctrl+Alt+Space
+            // Las etiquetas visibles se mantienen en sync en `src/state/shortcuts.ts`.
             #[cfg(target_os = "macos")]
-            let shortcut = "Alt+Space";
+            let shortcut_default = "Alt+Space";
             #[cfg(not(target_os = "macos"))]
-            let shortcut = "Ctrl+Shift+Space";
-            app.handle().global_shortcut().register(shortcut)?;
+            let shortcut_default = "Ctrl+Shift+Space";
+            app.manage(ActiveShortcut::default());
+            apply_shortcut(&app.handle().clone(), shortcut_default)
+                .map_err(|e| format!("atajo por defecto: {e}"))?;
 
             // Load (or create on first boot) the license state from
             // AppData/license.json so commands can read/write it.
@@ -831,12 +875,16 @@ pub fn run() {
             detect_hardware,
             raise_overlay,
             paste_text,
+            set_shortcut,
             license::license_get_state,
             license::license_activate,
             license::license_validate,
             license::license_deactivate,
             usage::usage_get_state,
             usage::usage_add_words,
+            updater::check_for_update,
+            updater::install_update,
+            updater::restart_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

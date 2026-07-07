@@ -6,6 +6,8 @@ import { MacWindowFrame } from "./components/MacWindow";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { LicenseBanner } from "./components/LicenseBanner";
+import { UpdateBanner } from "./components/UpdateBanner";
+import { useUpdater } from "./hooks/useUpdater";
 import { LicenseModal } from "./components/LicenseModal";
 import { TutorialModal } from "./components/TutorialModal";
 import { HomeScreen } from "./screens/Home";
@@ -15,7 +17,8 @@ import { HelpScreen } from "./screens/Help";
 import { SettingsScreen } from "./screens/Settings";
 import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 import { formatDuration, useRecorder, type RecorderResult } from "./hooks/useRecorder";
-import { pasteText } from "./lib/tauri";
+import { pasteText, setShortcut } from "./lib/tauri";
+import { getAccelerator } from "./state/shortcuts";
 import {
   clearTranscriptions,
   insertTranscription,
@@ -36,6 +39,7 @@ import {
   getStoreLocal,
   getTextScale,
   getTranscriptFont,
+  getUserName,
   setLanguage,
   setMicDeviceId,
   setSidebarWidth,
@@ -98,12 +102,27 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    // Rust registra el atajo por defecto al arrancar; aplicamos por encima el
+    // guardado del usuario (idempotente si coincide con el default).
+    void setShortcut(getAccelerator()).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (isOnboardingCompleted()) {
       const stored = getSelectedModelFile() ?? FALLBACK_MODEL_FILE;
       setAppState({ kind: "ready", modelFile: stored });
     } else {
       setAppState({ kind: "onboarding" });
     }
+  }, []);
+
+  // Fired by "Ver la introducción otra vez" en Ajustes → General. Esa acción
+  // ya limpió los flags de onboarding en localStorage (resetOnboarding); aquí
+  // solo conmutamos el árbol de React sin recargar la ventana.
+  useEffect(() => {
+    const handler = () => setAppState({ kind: "onboarding" });
+    window.addEventListener("replay-onboarding", handler);
+    return () => window.removeEventListener("replay-onboarding", handler);
   }, []);
 
   const onThemeChange = (id: ThemeId) => {
@@ -226,6 +245,7 @@ function Dashboard({
   // Language + mic are held in state so the recorder re-primes when they
   // change. The setters below persist + update state together.
   const [language, setLanguageState] = useState<string>(() => getLanguage());
+  const [userName, setUserNameState] = useState<string>(() => getUserName());
   const [micDeviceId, setMicDeviceIdState] = useState<string | null>(() =>
     getMicDeviceId(),
   );
@@ -335,6 +355,7 @@ function Dashboard({
   // dictation until it resets or they buy a license.
   const usage = useUsage();
   const dictionary = useDictionary();
+  const updater = useUpdater();
   const overQuota = !premium && !!usage.state && wordsRemaining(usage.state) <= 0;
 
   premiumRef.current = premium;
@@ -401,9 +422,9 @@ function Dashboard({
     toggle();
   }, [toggle]);
 
-  // Global shortcut (⌥ Space) fires a "toggle-recording" event from Rust.
-  // We pin the latest `toggle` in a ref so the listener (subscribed exactly
-  // once on mount) always calls the current closure — otherwise React would
+  // Global shortcut (⌥ Space) fires a "toggle-recording" event from Rust. We
+  // pin the latest `toggle` in a ref so the listener (subscribed exactly once
+  // on mount) always calls the current closure — otherwise React would
   // re-subscribe on every status change and leak stale listeners that fire
   // start() and stop() concurrently.
   const toggleRef = useRef(guardedToggle);
@@ -476,6 +497,12 @@ function Dashboard({
             minWidth: 0,
           }}
         >
+          <UpdateBanner
+            state={updater.state}
+            onInstall={updater.install}
+            onRestart={updater.restart}
+            onDismiss={updater.dismiss}
+          />
           <TopBar
             title={TITLES[screen]}
             recording={status === "recording"}
@@ -498,7 +525,7 @@ function Dashboard({
           <div className="scroll" style={{ flex: 1, overflowY: "auto" }}>
             {screen === "home" && (
               <HomeScreen
-                userName="Pol"
+                userName={userName}
                 refreshKey={historyVersion}
                 modelName={modelDisplayName}
                 onNavigate={onNavigate}
@@ -541,6 +568,10 @@ function Dashboard({
                 onTextScaleChange={onTextScaleChange}
                 initialSection={pendingSettingsSection}
                 licenseState={license.state}
+                updateState={updater.state}
+                onCheckUpdate={() => void updater.check(false)}
+                onInstallUpdate={updater.install}
+                onRestartApp={updater.restart}
                 onActivateLicense={() => setLicenseModalOpen(true)}
                 onDeactivateLicense={async () => {
                   try {

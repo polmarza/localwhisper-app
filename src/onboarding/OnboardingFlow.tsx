@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Welcome } from "./Welcome";
+import { AboutYou } from "./AboutYou";
+import { ChooseShortcut } from "./ChooseShortcut";
+import { DictionaryStarter } from "./DictionaryStarter";
 import { ChooseTheme } from "./ChooseTheme";
-import { ChooseTier } from "./ChooseTier";
 import { InstallProgress } from "./InstallProgress";
+import { HowToDictate } from "./HowToDictate";
+import { StatsTeaser } from "./StatsTeaser";
 import { ActivateLicense } from "./ActivateLicense";
 import { Ready } from "./Ready";
 import { activateLicense } from "../state/license";
@@ -29,7 +33,17 @@ import {
   type ThemeMode,
 } from "../state/theme";
 
-type Step = "welcome" | "theme" | "tier" | "install" | "license" | "ready";
+type Step =
+  | "welcome"
+  | "about"
+  | "shortcut"
+  | "dictionary"
+  | "theme"
+  | "install"
+  | "dictate"
+  | "stats"
+  | "license"
+  | "ready";
 
 type Props = {
   onComplete: (modelFile: string) => void;
@@ -84,7 +98,7 @@ export function OnboardingFlow({ onComplete }: Props) {
       const models = await listLocalModels();
       const target = findTier(tier).fileName;
       if (models.some((m) => m.file_name === target)) {
-        setStep("license");
+        setStep("dictate");
         return;
       }
     } catch {
@@ -104,20 +118,25 @@ export function OnboardingFlow({ onComplete }: Props) {
 
   const stepIndex: Record<Step, number> = {
     welcome: 0,
-    theme: 1,
-    tier: 2,
-    install: 3,
-    license: 4,
-    ready: 5,
+    about: 1,
+    shortcut: 2,
+    dictionary: 3,
+    theme: 4,
+    install: 5,
+    dictate: 6,
+    stats: 7,
+    license: 8,
+    ready: 9,
   };
   const currentIdx = stepIndex[step];
+  const stepCount = 10;
 
   return (
     <div className="onb-shell">
       <div className="onb-titlebar" data-tauri-drag-region />
 
       <div className="onb-dots">
-        {[0, 1, 2, 3, 4, 5].map((i) => (
+        {Array.from({ length: stepCount }, (_, i) => (
           <span
             key={i}
             className="onb-dot"
@@ -129,7 +148,19 @@ export function OnboardingFlow({ onComplete }: Props) {
 
       <div className="onb-body">
         {step === "welcome" && (
-          <Welcome onContinue={() => setStep("theme")} />
+          <Welcome onContinue={() => setStep("about")} />
+        )}
+
+        {step === "about" && (
+          <AboutYou onContinue={() => setStep("shortcut")} />
+        )}
+
+        {step === "shortcut" && (
+          <ChooseShortcut onContinue={() => setStep("dictionary")} />
+        )}
+
+        {step === "dictionary" && (
+          <DictionaryStarter onContinue={() => setStep("theme")} />
         )}
 
         {step === "theme" && (
@@ -138,16 +169,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             mode={themeMode}
             onThemeChange={onThemeSelect}
             onModeChange={onModeSelect}
-            onContinue={() => setStep("tier")}
-          />
-        )}
-
-        {step === "tier" && hardware && (
-          <ChooseTier
-            hardware={hardware}
-            tier={tier}
-            onTierChange={setTier}
-            onInstall={() => void startInstall()}
+            onContinue={() => void startInstall()}
           />
         )}
 
@@ -155,9 +177,17 @@ export function OnboardingFlow({ onComplete }: Props) {
           <InstallProgress
             key={installAttempt}
             tierId={tier}
-            onDone={() => setStep("license")}
+            onDone={() => setStep("dictate")}
             onRetry={() => setInstallAttempt((n) => n + 1)}
           />
+        )}
+
+        {step === "dictate" && (
+          <HowToDictate onContinue={() => setStep("stats")} />
+        )}
+
+        {step === "stats" && (
+          <StatsTeaser onContinue={() => setStep("license")} />
         )}
 
         {step === "license" && (
