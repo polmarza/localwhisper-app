@@ -1107,6 +1107,17 @@ kbd {
   color: var(--accent-ink);
   animation: shortcut-live-pulse 1s ease-in-out infinite;
 }
+.shortcut-recorder-slot[data-saved="true"] {
+  border-style: solid;
+  border-color: var(--good);
+}
+.shortcut-recorder-saved {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--good);
+  white-space: nowrap;
+  margin: 0;
+}
 @keyframes shortcut-live-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.75; }

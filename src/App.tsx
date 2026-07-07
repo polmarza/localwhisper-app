@@ -412,7 +412,20 @@ function Dashboard({
   // Starting a dictation is blocked only when a free user has exhausted their
   // weekly word quota — then we surface the upsell modal. Stopping an in-flight
   // recording is always allowed.
+  // Mientras el grabador de atajos está abierto (Ajustes/onboarding), el atajo
+  // global no debe arrancar un dictado: el usuario está pulsando combinaciones
+  // para GRABARLAS. El ShortcutRecorder emite este evento al abrir/cerrar.
+  const shortcutRecorderActiveRef = useRef(false);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      shortcutRecorderActiveRef.current = Boolean((e as CustomEvent).detail);
+    };
+    window.addEventListener("shortcut-recorder-active", handler);
+    return () => window.removeEventListener("shortcut-recorder-active", handler);
+  }, []);
+
   const guardedToggle = useCallback(() => {
+    if (shortcutRecorderActiveRef.current) return;
     if (statusRef.current !== "recording" && overQuotaRef.current) {
       setLicenseModalOpen(true);
       return;

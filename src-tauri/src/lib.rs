@@ -809,7 +809,10 @@ fn disable_shortcut(
         .lock()
         .map_err(|_| "estado de atajo bloqueado".to_string())?;
     if !current.is_empty() {
-        let _ = gs.unregister(current.as_str());
+        // Propagamos el error: si el atajo sigue registrado, el frontend debe
+        // saberlo (grabar la misma combinación seguiría sin funcionar).
+        gs.unregister(current.as_str())
+            .map_err(|e| format!("no se pudo liberar el atajo actual: {e}"))?;
     }
     *current = String::new();
     Ok(())

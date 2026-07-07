@@ -72,6 +72,11 @@ export function ShortcutRecorder({ value, onChange }: Props) {
   const [armed, setArmed] = useState(false);
   const [liveMods, setLiveMods] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Confirmación visible tras guardar. Crucial cuando el usuario graba la
+  // MISMA combinación que ya tenía: sin esto, la UI vuelve a mostrar chips
+  // idénticos y parece que "no ha hecho nada".
+  const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<number | null>(null);
 
   const keys = parseAccelerator(value);
   const isDefault = value === defaultAccelerator();
@@ -98,6 +103,9 @@ export function ShortcutRecorder({ value, onChange }: Props) {
         setArmed(false);
         setLiveMods([]);
         setError(null);
+        setSaved(true);
+        if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = window.setTimeout(() => setSaved(false), 2200);
       } catch (e) {
         // La combinación choca con otra cosa (SO u otra app). Nos quedamos
         // grabando para que pueda probar otra — el anterior sigue
@@ -186,6 +194,16 @@ export function ShortcutRecorder({ value, onChange }: Props) {
     };
   }, [recording, armed, commit, cancelRecording]);
 
+  // Mientras se graba, avisamos al resto de la app (App.tsx) para que ignore
+  // "toggle-recording": si el atajo global siguiera registrado por cualquier
+  // motivo, pulsarlo a media grabación arrancaría un DICTADO (con su overlay
+  // robando el foco) en vez de grabarse como combinación.
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("shortcut-recorder-active", { detail: recording }),
+    );
+  }, [recording]);
+
   // Red de seguridad: si el componente se desmonta a media grabación (p. ej.
   // el usuario cambia de sección en Ajustes), restauramos el atajo anterior
   // para no dejar la app sin atajo funcionando.
@@ -193,7 +211,11 @@ export function ShortcutRecorder({ value, onChange }: Props) {
     return () => {
       if (recordingRef.current) {
         void applyShortcut(valueRef.current).catch(() => {});
+        window.dispatchEvent(
+          new CustomEvent("shortcut-recorder-active", { detail: false }),
+        );
       }
+      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
     };
   }, []);
 
@@ -212,6 +234,7 @@ export function ShortcutRecorder({ value, onChange }: Props) {
         type="button"
         className="shortcut-recorder-slot"
         data-recording={recording}
+        data-saved={saved}
         onClick={() => (recording ? cancelRecording() : startRecording())}
       >
         {recording ? (
@@ -252,6 +275,7 @@ export function ShortcutRecorder({ value, onChange }: Props) {
         )}
       </div>
 
+      {saved && <p className="shortcut-recorder-saved">✓ Atajo guardado</p>}
       {error && <p className="shortcut-recorder-error">{error}</p>}
     </div>
   );
