@@ -14,6 +14,7 @@ import {
 } from "../components/Icons";
 import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
 import { ShortcutRecorder } from "../components/ShortcutRecorder";
+import { ShortcutModePicker } from "../components/ShortcutModePicker";
 import { getRecordingAccelerator } from "../state/shortcuts";
 import {
   listAllTranscriptions,
@@ -1075,6 +1076,12 @@ export function SettingsScreen({
                 hint="Pulsa para iniciar o detener una grabación desde cualquier app."
               >
                 <ShortcutRecorder value={shortcutAccel} onChange={setShortcutAccel} />
+              </Row>
+              <Row
+                label="Comportamiento"
+                hint="Cómo responde el atajo mientras dictas."
+              >
+                <ShortcutModePicker />
               </Row>
             </Card>
           )}

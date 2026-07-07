@@ -13,6 +13,7 @@ const KEY_TEXT_SCALE = "localwhisper.textScale";
 const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
 const KEY_USER_NAME = "localwhisper.userName";
 const KEY_SHORTCUT = "localwhisper.shortcut";
+const KEY_SHORTCUT_MODE = "localwhisper.shortcutMode";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -122,6 +123,30 @@ export function setShortcut(accelerator: string) {
     const trimmed = accelerator.trim();
     if (trimmed) localStorage.setItem(KEY_SHORTCUT, trimmed);
     else localStorage.removeItem(KEY_SHORTCUT);
+  } catch {
+    // ignore
+  }
+}
+
+// Cómo se comporta el atajo global de grabación:
+//   - "toggle": pulsar para empezar, pulsar otra vez para parar (default).
+//   - "hold":   mantener pulsado para dictar; al soltar, transcribe. Un toque
+//               rápido (<400 ms) también inicia/para, para no generar clips
+//               basura de milisegundos.
+export type ShortcutMode = "toggle" | "hold";
+
+export function getShortcutMode(): ShortcutMode {
+  try {
+    const v = localStorage.getItem(KEY_SHORTCUT_MODE);
+    return v === "hold" ? "hold" : "toggle";
+  } catch {
+    return "toggle";
+  }
+}
+
+export function setShortcutMode(mode: ShortcutMode) {
+  try {
+    localStorage.setItem(KEY_SHORTCUT_MODE, mode);
   } catch {
     // ignore
   }

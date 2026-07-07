@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ShortcutRecorder } from "../components/ShortcutRecorder";
+import { ShortcutModePicker } from "../components/ShortcutModePicker";
 import { getRecordingAccelerator } from "../state/shortcuts";
 
 type Props = {
@@ -24,7 +25,12 @@ export function ChooseShortcut({ onContinue }: Props) {
         <ShortcutRecorder value={accel} onChange={setAccel} />
       </div>
 
-      <p className="onb-field-hint" style={{ maxWidth: 340, marginTop: 14 }}>
+      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <span className="onb-field-label">¿Cómo prefieres dictar?</span>
+        <ShortcutModePicker />
+      </div>
+
+      <p className="onb-field-hint" style={{ maxWidth: 340, marginTop: 10 }}>
         Consejo: elige una combinación que no uses para otra cosa. Si la que grabas ya está ocupada,
         te avisaremos para que pruebes otra.
       </p>

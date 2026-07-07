@@ -825,10 +825,14 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     use tauri_plugin_global_shortcut::ShortcutState;
-                    if event.state() == ShortcutState::Pressed {
-                        if let Some(win) = app.get_webview_window("main") {
-                            let _ = win.emit("toggle-recording", ());
-                        }
+                    // Emitimos pulsar y soltar por separado: el frontend decide
+                    // según el modo elegido (pulsar-para-alternar vs mantener
+                    // pulsado para dictar / push-to-talk).
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = match event.state() {
+                            ShortcutState::Pressed => win.emit("shortcut-pressed", ()),
+                            ShortcutState::Released => win.emit("shortcut-released", ()),
+                        };
                     }
                 })
                 .build(),
