@@ -11,6 +11,8 @@ const KEY_LANGUAGE = "localwhisper.language";
 const KEY_MIC_DEVICE = "localwhisper.micDeviceId";
 const KEY_TEXT_SCALE = "localwhisper.textScale";
 const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
+const KEY_USER_NAME = "localwhisper.userName";
+const KEY_SHORTCUT = "localwhisper.shortcut";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -79,6 +81,47 @@ export function getLanguage(): string {
 export function setLanguage(code: string) {
   try {
     localStorage.setItem(KEY_LANGUAGE, code);
+  } catch {
+    // ignore
+  }
+}
+
+// Nombre del usuario, capturado en el onboarding. Vacío si aún no lo ha dado
+// (los saludos hacen fallback a un texto genérico en vez de un nombre real).
+export function getUserName(): string {
+  try {
+    return (localStorage.getItem(KEY_USER_NAME) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setUserName(name: string) {
+  try {
+    const trimmed = name.trim();
+    if (trimmed) localStorage.setItem(KEY_USER_NAME, trimmed);
+    else localStorage.removeItem(KEY_USER_NAME);
+  } catch {
+    // ignore
+  }
+}
+
+// Atajo global para grabar, en el formato del plugin de Tauri ("Alt+Space",
+// "CmdOrCtrl+Shift+D", …). Vacío = usar el default por plataforma que registra
+// Rust al arrancar. Al cambiarlo llamamos al comando `set_shortcut` en Rust.
+export function getShortcut(): string {
+  try {
+    return (localStorage.getItem(KEY_SHORTCUT) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setShortcut(accelerator: string) {
+  try {
+    const trimmed = accelerator.trim();
+    if (trimmed) localStorage.setItem(KEY_SHORTCUT, trimmed);
+    else localStorage.removeItem(KEY_SHORTCUT);
   } catch {
     // ignore
   }

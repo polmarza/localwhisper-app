@@ -15,7 +15,7 @@ import { HelpScreen } from "./screens/Help";
 import { SettingsScreen } from "./screens/Settings";
 import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 import { formatDuration, useRecorder, type RecorderResult } from "./hooks/useRecorder";
-import { pasteText } from "./lib/tauri";
+import { pasteText, setShortcut } from "./lib/tauri";
 import {
   clearTranscriptions,
   insertTranscription,
@@ -36,6 +36,8 @@ import {
   getStoreLocal,
   getTextScale,
   getTranscriptFont,
+  getShortcut,
+  getUserName,
   setLanguage,
   setMicDeviceId,
   setSidebarWidth,
@@ -95,6 +97,13 @@ export function App() {
     // --transcript-font CSS variable. Applied once on load; Settings updates the
     // attribute directly when the user changes it.
     document.body.setAttribute("data-font", getTranscriptFont());
+  }, []);
+
+  useEffect(() => {
+    // Rust registra el atajo por defecto al arrancar; si el usuario tiene uno
+    // personalizado guardado, lo aplicamos por encima al cargar la app.
+    const custom = getShortcut();
+    if (custom) void setShortcut(custom).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -226,6 +235,7 @@ function Dashboard({
   // Language + mic are held in state so the recorder re-primes when they
   // change. The setters below persist + update state together.
   const [language, setLanguageState] = useState<string>(() => getLanguage());
+  const [userName, setUserNameState] = useState<string>(() => getUserName());
   const [micDeviceId, setMicDeviceIdState] = useState<string | null>(() =>
     getMicDeviceId(),
   );
@@ -498,7 +508,7 @@ function Dashboard({
           <div className="scroll" style={{ flex: 1, overflowY: "auto" }}>
             {screen === "home" && (
               <HomeScreen
-                userName="Pol"
+                userName={userName}
                 refreshKey={historyVersion}
                 modelName={modelDisplayName}
                 onNavigate={onNavigate}

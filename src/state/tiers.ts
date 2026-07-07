@@ -60,16 +60,15 @@ export function tierForFile(fileName: string): TierId | null {
 
 export function recommendTier(hw: Hardware): TierId {
   // Windows/Linux transcriben en CPU (sin Metal), así que los modelos grandes
-  // van lentos — recomendamos Ligera por defecto en esas plataformas.
+  // van lentos — recomendamos Ligero por defecto en esas plataformas.
   if (getPlatformName() !== "Mac") return "small";
-  // Equilibrada es nuestra recomendación por defecto en Mac: large-v3-turbo
-  // cuantizado es genuinamente bueno para casi cualquier equipo moderno, y los
-  // 548 MB son asumibles. Solo recomendamos Ligera en equipos antiguos donde 8
-  // GB sea ajustado para la carga adicional del modelo.
+  // Equilibrado es el default: large-v3-turbo cuantizado es genuinamente bueno
+  // para casi cualquier Mac moderno y 548 MB son asumibles. Solo bajamos a
+  // Ligero en equipos flojos (RAM ajustada para la carga del modelo).
   if (hw.total_ram_gb < 8) return "small";
-  // Máxima solo para Apple Silicon con holgura de RAM — en equipos con menos
-  // recursos los beneficios marginales no compensan el coste en velocidad.
-  if (hw.is_apple_silicon && hw.total_ram_gb >= 16) return "large";
+  // Máximo NUNCA se auto-recomienda: es demasiado para el usuario medio y solo
+  // aporta un plus marginal de precisión a cambio de bastante velocidad. Queda
+  // disponible bajo demanda desde la pantalla de Modelos, no en el onboarding.
   return "medium";
 }
 

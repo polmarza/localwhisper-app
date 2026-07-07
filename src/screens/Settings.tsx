@@ -47,16 +47,7 @@ import {
 } from "../state/license";
 import { openUrl } from "../lib/tauri";
 
-const LANGUAGES: Array<{ code: string; label: string }> = [
-  { code: "auto", label: "Automático (detectar)" },
-  { code: "es", label: "Español" },
-  { code: "en", label: "Inglés" },
-  { code: "ca", label: "Catalán" },
-  { code: "pt", label: "Portugués" },
-  { code: "fr", label: "Francés" },
-  { code: "de", label: "Alemán" },
-  { code: "it", label: "Italiano" },
-];
+import { LANGUAGES } from "../state/languages";
 
 const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: ReactNode }> = [
   { id: "general", label: "General", icon: <IconCog size={15} /> },

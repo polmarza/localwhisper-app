@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { IconCheck } from "../components/Icons";
 import { THEMES, type ThemeId, type ThemeMode } from "../state/theme";
 
@@ -16,6 +17,12 @@ export function ChooseTheme({
   onModeChange,
   onContinue,
 }: Props) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const scrollBy = (dir: 1 | -1) => {
+    trackRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  };
+
   return (
     <div
       className="onb-step"
@@ -30,15 +37,16 @@ export function ChooseTheme({
         Podrás cambiarlo desde Ajustes cuando quieras.
       </p>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 14,
-          marginTop: 8,
-          flexWrap: "wrap",
-          justifyContent: "center",
-        }}
-      >
+      <div className="theme-slider">
+        <button
+          type="button"
+          className="theme-slider-arrow"
+          aria-label="Anterior"
+          onClick={() => scrollBy(-1)}
+        >
+          ‹
+        </button>
+        <div className="theme-slider-track" ref={trackRef}>
         {THEMES.map((t) => {
           const active = theme === t.id;
           const bg = t.preview[mode].bg;
@@ -119,6 +127,15 @@ export function ChooseTheme({
             </button>
           );
         })}
+        </div>
+        <button
+          type="button"
+          className="theme-slider-arrow"
+          aria-label="Siguiente"
+          onClick={() => scrollBy(1)}
+        >
+          ›
+        </button>
       </div>
 
       <ModeToggle mode={mode} onChange={onModeChange} />

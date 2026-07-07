@@ -53,6 +53,16 @@ export async function openUrl(url: string): Promise<void> {
   return invoke("open_url", { url });
 }
 
+/**
+ * Cambia el atajo global de grabación en caliente. `accelerator` va en el
+ * formato del plugin de Tauri ("Alt+Space", "CmdOrCtrl+Shift+D", …).
+ * Rechaza (throw) si la combinación ya está en uso — la UI lo usa para avisar
+ * sin dejar al usuario sin atajo (el anterior sigue activo si este falla).
+ */
+export async function setShortcut(accelerator: string): Promise<void> {
+  return invoke("set_shortcut", { accelerator });
+}
+
 export type PasteOutcome = {
   app: string | null;
   pasted: boolean;

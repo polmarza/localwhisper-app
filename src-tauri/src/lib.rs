@@ -760,6 +760,36 @@ fn frontmost_app_name() -> Option<String> {
     None
 }
 
+/// Acelerador global actualmente registrado. Lo guardamos para poder cambiarlo
+/// en caliente sin dejar al usuario sin atajo si el nuevo falla al registrarse.
+struct ActiveShortcut(std::sync::Mutex<String>);
+
+/// Cambia el atajo global de grabación. Registra el nuevo PRIMERO: si falla
+/// (p. ej. la combinación ya está en uso por el sistema u otra app), el atajo
+/// actual sigue funcionando y devolvemos Err para que la UI avise. Solo cuando
+/// el nuevo entra bien quitamos el anterior.
+#[tauri::command]
+fn set_shortcut(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ActiveShortcut>,
+    accelerator: String,
+) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let gs = app.global_shortcut();
+    let mut current = state
+        .0
+        .lock()
+        .map_err(|_| "estado de atajo bloqueado".to_string())?;
+    if *current == accelerator {
+        return Ok(());
+    }
+    gs.register(accelerator.as_str())
+        .map_err(|e| format!("{e}"))?;
+    let _ = gs.unregister(current.as_str());
+    *current = accelerator;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -795,6 +825,8 @@ pub fn run() {
             #[cfg(not(target_os = "macos"))]
             let shortcut = "Ctrl+Shift+Space";
             app.handle().global_shortcut().register(shortcut)?;
+            // Recordamos el atajo activo para poder cambiarlo desde la UI.
+            app.manage(ActiveShortcut(std::sync::Mutex::new(shortcut.to_string())));
 
             // Load (or create on first boot) the license state from
             // AppData/license.json so commands can read/write it.
@@ -831,6 +863,7 @@ pub fn run() {
             detect_hardware,
             raise_overlay,
             paste_text,
+            set_shortcut,
             license::license_get_state,
             license::license_activate,
             license::license_validate,
