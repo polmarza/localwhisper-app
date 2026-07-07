@@ -54,17 +54,13 @@ export async function openUrl(url: string): Promise<void> {
 }
 
 /**
- * Configura los dos atajos globales de grabación de una vez, en formato del
- * plugin de Tauri ("Alt+Space", "Ctrl+Alt+D", …). `toggle` = pulsar/pulsar;
- * `hold` = mantener pulsado (push-to-talk), null para desactivarlo.
- * Rechaza (throw) si alguna combinación no se puede registrar (en uso por otra
- * app) o si ambas coinciden — la UI revierte el desplegable y avisa.
+ * Configura el atajo global de dictado, en formato del plugin de Tauri
+ * ("Alt+Space", "Ctrl+Alt+D", …). Rechaza (throw) si la combinación no se
+ * puede registrar (en uso por otra app) — la UI revierte el desplegable y
+ * avisa, sin dejar al usuario sin atajo (el anterior sigue activo).
  */
-export async function setShortcuts(
-  toggle: string | null,
-  hold: string | null,
-): Promise<void> {
-  return invoke("set_shortcuts", { toggle, hold });
+export async function setShortcut(accelerator: string): Promise<void> {
+  return invoke("set_shortcut", { accelerator });
 }
 
 export type PasteOutcome = {

@@ -1,18 +1,14 @@
 import { getPlatformName } from "./hardware";
-import { getHoldShortcutPref, getToggleShortcutPref } from "./preferences";
+import { getShortcutPref } from "./preferences";
 
 /**
- * Atajos globales de grabación. Hay dos, independientes y simultáneos:
- *
- *   - toggle: pulsar para empezar a dictar, pulsar otra vez para parar.
- *   - hold:   mantener pulsado para dictar (push-to-talk); al soltar,
- *             transcribe. Opcional ("Ninguno").
- *
- * Se eligen de una lista curada de combinaciones seguras (desplegable), no de
- * un grabador de teclado — capturar teclas dentro del WebView de macOS resultó
- * poco fiable. Los defaults por plataforma evitan atajos reservados del SO;
- * Rust los registra al arrancar y App.tsx aplica los guardados del usuario.
- * Si cambias un default aquí, cambia también `src-tauri/src/lib.rs`.
+ * Atajo global de dictado: pulsar para empezar a grabar, pulsar otra vez para
+ * parar. Se elige de una lista curada de combinaciones seguras (desplegable),
+ * no de un grabador de teclado — capturar teclas dentro del WebView de macOS
+ * resultó poco fiable. Los defaults por plataforma evitan atajos reservados
+ * del SO; Rust lo registra al arrancar y App.tsx aplica el guardado del
+ * usuario. Si cambias el default aquí, cámbialo también en
+ * `src-tauri/src/lib.rs`.
  */
 
 export type ShortcutKey = {
@@ -24,20 +20,13 @@ export type ShortcutKey = {
 
 export type Shortcut = ShortcutKey[];
 
-/** Valor especial en la pref de hold: push-to-talk desactivado. */
-export const SHORTCUT_NONE = "none";
-
-export function defaultToggleAccelerator(): string {
+export function defaultAccelerator(): string {
   return getPlatformName() === "Mac" ? "Alt+Space" : "Ctrl+Shift+Space";
 }
 
-export function defaultHoldAccelerator(): string {
-  return "Ctrl+Alt+Space";
-}
-
-/** Combinaciones ofrecidas en los desplegables, seguras por plataforma
- *  (evitan Cmd+Space/Spotlight, Ctrl+Space/cambio de idioma, Alt+Space en
- *  Windows = menú de ventana, etc.). */
+/** Combinaciones ofrecidas en el desplegable, seguras por plataforma (evitan
+ *  Cmd+Space/Spotlight, Ctrl+Space/cambio de idioma, Alt+Space en Windows =
+ *  menú de ventana, etc.). */
 export function shortcutPresets(): string[] {
   if (getPlatformName() === "Mac") {
     return [
@@ -58,16 +47,9 @@ export function shortcutPresets(): string[] {
   ];
 }
 
-/** Acelerador activo del atajo de pulsar (pref del usuario o default). */
-export function getToggleAccelerator(): string {
-  return getToggleShortcutPref() || defaultToggleAccelerator();
-}
-
-/** Acelerador activo del push-to-talk, o null si está desactivado. */
-export function getHoldAccelerator(): string | null {
-  const pref = getHoldShortcutPref();
-  if (pref === SHORTCUT_NONE) return null;
-  return pref || defaultHoldAccelerator();
+/** Acelerador activo (pref del usuario o default de plataforma). */
+export function getAccelerator(): string {
+  return getShortcutPref() || defaultAccelerator();
 }
 
 /** Maps one accelerator token to its display + accessible name per platform. */
@@ -125,12 +107,12 @@ export function formatAccelerator(accelerator: string, separator = " + "): strin
     .join(separator);
 }
 
-/** El atajo principal (toggle) para mostrar en tutoriales y ayuda. */
+/** El atajo de dictado, para mostrar en tutoriales y ayuda. */
 export function getRecordingShortcut(): Shortcut {
-  return parseAccelerator(getToggleAccelerator());
+  return parseAccelerator(getAccelerator());
 }
 
-/** A simple "⌥ + Espacio" string for inline text (toggle shortcut). */
+/** A simple "⌥ + Espacio" string for inline text. */
 export function formatRecordingShortcut(separator = " + "): string {
   return getRecordingShortcut()
     .map((k) => k.label)

@@ -760,79 +760,43 @@ fn frontmost_app_name() -> Option<String> {
     None
 }
 
-/// Atajos globales activos. La app tiene dos, con papeles distintos:
-///   - "toggle": pulsar para empezar a dictar, pulsar de nuevo para parar.
-///   - "hold":   mantener pulsado para dictar (push-to-talk); opcional.
-/// `roles` mapea el id del hotkey → papel, para que el handler global sepa
-/// cuál de los dos se ha disparado. `active` guarda los aceleradores
-/// registrados para poder desregistrarlos al cambiar la configuración.
+/// Acelerador global actualmente registrado para el dictado. Lo guardamos para
+/// poder cambiarlo en caliente sin dejar al usuario sin atajo si el nuevo falla.
 #[derive(Default)]
-struct ShortcutRegistry(std::sync::Mutex<ShortcutRegistryInner>);
+struct ActiveShortcut(std::sync::Mutex<String>);
 
-#[derive(Default)]
-struct ShortcutRegistryInner {
-    active: Vec<String>,
-    roles: std::collections::HashMap<u32, &'static str>,
-}
-
-/// Aplica una configuración completa de atajos: desregistra los actuales y
-/// registra los nuevos. `None` = ese papel queda sin atajo (p. ej. usuario
-/// desactiva el push-to-talk). Si un registro falla (combinación en uso por
-/// otra app), devuelve Err con la causa — el frontend revierte y avisa.
-fn apply_shortcuts(
-    app: &tauri::AppHandle,
-    toggle: Option<&str>,
-    hold: Option<&str>,
-) -> Result<(), String> {
+/// Registra el atajo de dictado. Valida y registra el nuevo PRIMERO: si falla
+/// (combinación en uso por otra app), el actual sigue vivo y devolvemos Err
+/// con la causa. Solo cuando el nuevo entra bien quitamos el anterior.
+fn apply_shortcut(app: &tauri::AppHandle, accelerator: &str) -> Result<(), String> {
     use std::str::FromStr;
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
-    // Validar ANTES de tocar nada: parse de ambos y choque entre sí.
-    let parse = |accel: &str| {
-        Shortcut::from_str(accel).map_err(|e| format!("atajo inválido «{accel}»: {e}"))
-    };
-    let toggle_sc = toggle.map(parse).transpose()?;
-    let hold_sc = hold.map(parse).transpose()?;
-    if let (Some(a), Some(b)) = (&toggle_sc, &hold_sc) {
-        if a.id() == b.id() {
-            return Err("El atajo de pulsar y el de mantener no pueden ser el mismo.".into());
-        }
-    }
+    Shortcut::from_str(accelerator)
+        .map_err(|e| format!("atajo inválido «{accelerator}»: {e}"))?;
 
     let gs = app.global_shortcut();
-    let state = app.state::<ShortcutRegistry>();
-    let mut reg = state
+    let state = app.state::<ActiveShortcut>();
+    let mut current = state
         .0
         .lock()
-        .map_err(|_| "estado de atajos bloqueado".to_string())?;
-
-    for old in reg.active.drain(..) {
-        let _ = gs.unregister(old.as_str());
+        .map_err(|_| "estado de atajo bloqueado".to_string())?;
+    if *current == accelerator {
+        return Ok(());
     }
-    reg.roles.clear();
-
-    for (accel, sc, role) in [
-        (toggle, toggle_sc, "toggle"),
-        (hold, hold_sc, "hold"),
-    ] {
-        if let (Some(accel), Some(sc)) = (accel, sc) {
-            gs.register(accel)
-                .map_err(|e| format!("no se pudo registrar «{accel}»: {e}"))?;
-            reg.active.push(accel.to_string());
-            reg.roles.insert(sc.id(), role);
-        }
+    gs.register(accelerator)
+        .map_err(|e| format!("no se pudo registrar «{accelerator}»: {e}"))?;
+    if !current.is_empty() {
+        let _ = gs.unregister(current.as_str());
     }
+    *current = accelerator.to_string();
     Ok(())
 }
 
-/// Comando expuesto al frontend: configura ambos atajos de una vez.
+/// Comando expuesto al frontend: configura el atajo de dictado.
 #[tauri::command]
-fn set_shortcuts(
-    app: tauri::AppHandle,
-    toggle: Option<String>,
-    hold: Option<String>,
-) -> Result<(), String> {
-    apply_shortcuts(&app, toggle.as_deref(), hold.as_deref())
+fn set_shortcut(app: tauri::AppHandle, accelerator: String) -> Result<(), String> {
+    apply_shortcut(&app, &accelerator)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -840,21 +804,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, shortcut, event| {
+                .with_handler(|app, _shortcut, event| {
                     use tauri_plugin_global_shortcut::ShortcutState;
-                    // Cada atajo tiene un papel (toggle o hold); lo resolvemos
-                    // por el id del hotkey y emitimos el evento que corresponda.
-                    let role = app
-                        .try_state::<ShortcutRegistry>()
-                        .and_then(|s| s.0.lock().ok().and_then(|r| r.roles.get(&shortcut.id()).copied()));
-                    let Some(role) = role else { return };
-                    if let Some(win) = app.get_webview_window("main") {
-                        let _ = match (role, event.state()) {
-                            ("toggle", ShortcutState::Pressed) => win.emit("shortcut-toggle", ()),
-                            ("hold", ShortcutState::Pressed) => win.emit("shortcut-hold-pressed", ()),
-                            ("hold", ShortcutState::Released) => win.emit("shortcut-hold-released", ()),
-                            _ => Ok(()),
-                        };
+                    // Solo el atajo de dictado está registrado; al pulsarlo,
+                    // alternamos la grabación (pulsar para empezar / parar).
+                    if event.state() == ShortcutState::Pressed {
+                        if let Some(win) = app.get_webview_window("main") {
+                            let _ = win.emit("toggle-recording", ());
+                        }
                     }
                 })
                 .build(),
@@ -874,12 +831,12 @@ pub fn run() {
             //   - hold (mantener pulsado / push-to-talk): Ctrl+Alt+Space
             // Las etiquetas visibles se mantienen en sync en `src/state/shortcuts.ts`.
             #[cfg(target_os = "macos")]
-            let toggle_default = "Alt+Space";
+            let shortcut_default = "Alt+Space";
             #[cfg(not(target_os = "macos"))]
-            let toggle_default = "Ctrl+Shift+Space";
-            app.manage(ShortcutRegistry::default());
-            apply_shortcuts(&app.handle().clone(), Some(toggle_default), Some("Ctrl+Alt+Space"))
-                .map_err(|e| format!("atajos por defecto: {e}"))?;
+            let shortcut_default = "Ctrl+Shift+Space";
+            app.manage(ActiveShortcut::default());
+            apply_shortcut(&app.handle().clone(), shortcut_default)
+                .map_err(|e| format!("atajo por defecto: {e}"))?;
 
             // Load (or create on first boot) the license state from
             // AppData/license.json so commands can read/write it.
@@ -916,7 +873,7 @@ pub fn run() {
             detect_hardware,
             raise_overlay,
             paste_text,
-            set_shortcuts,
+            set_shortcut,
             license::license_get_state,
             license::license_activate,
             license::license_validate,

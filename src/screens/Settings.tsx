@@ -13,7 +13,7 @@ import {
   IconShield,
 } from "../components/Icons";
 import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
-import { ShortcutSelect, useShortcutsConfig } from "../components/ShortcutSelect";
+import { ShortcutSelect, useShortcutConfig } from "../components/ShortcutSelect";
 import {
   listAllTranscriptions,
   listDictionaryEntries,
@@ -276,7 +276,7 @@ export function SettingsScreen({
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
   const [sounds, setSoundsState] = useState(() => getSounds());
   const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
-  const shortcuts = useShortcutsConfig();
+  const shortcut = useShortcutConfig();
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -1067,33 +1067,18 @@ export function SettingsScreen({
             <Card padding={0}>
               <SectionHead
                 title="Atajos de teclado"
-                subtitle="Los dos funcionan a la vez y se aplican al instante. Si una combinación ya está en uso por otra app, te avisamos."
+                subtitle="Elige la combinación que prefieras; se aplica al instante. Si ya está en uso por otra app, te avisamos."
               />
               <Row
-                label="Pulsar para dictar"
+                label="Empezar a dictar"
                 hint="Un toque para empezar a grabar y otro para terminar, desde cualquier app."
               >
-                <ShortcutSelect
-                  value={shortcuts.toggleAccel}
-                  onChange={shortcuts.setToggle}
-                  exclude={shortcuts.holdAccel}
-                />
+                <ShortcutSelect value={shortcut.accel} onChange={shortcut.setAccel} />
               </Row>
-              <Row
-                label="Mantener pulsado para dictar"
-                hint="Dictas mientras lo sostienes; al soltarlo se transcribe. Elige «Ninguno» si no lo quieres."
-              >
-                <ShortcutSelect
-                  value={shortcuts.holdAccel}
-                  onChange={shortcuts.setHold}
-                  exclude={shortcuts.toggleAccel}
-                  allowNone
-                />
-              </Row>
-              {shortcuts.error && (
+              {shortcut.error && (
                 <div style={{ padding: "10px 20px 16px" }}>
                   <span style={{ fontSize: 12.5, color: "var(--danger)" }}>
-                    {shortcuts.error}
+                    {shortcut.error}
                   </span>
                 </div>
               )}

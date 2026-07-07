@@ -12,8 +12,7 @@ const KEY_MIC_DEVICE = "localwhisper.micDeviceId";
 const KEY_TEXT_SCALE = "localwhisper.textScale";
 const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
 const KEY_USER_NAME = "localwhisper.userName";
-const KEY_SHORTCUT_TOGGLE = "localwhisper.shortcutToggle";
-const KEY_SHORTCUT_HOLD = "localwhisper.shortcutHold";
+const KEY_SHORTCUT = "localwhisper.shortcut";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -107,39 +106,20 @@ export function setUserName(name: string) {
   }
 }
 
-// Los dos atajos globales de grabación, en formato del plugin de Tauri
-// ("Alt+Space", "Ctrl+Alt+D", …). Vacío = default de plataforma.
-//   - toggle: pulsar para empezar, pulsar otra vez para parar.
-//   - hold:   mantener pulsado para dictar (push-to-talk); "none" = desactivado.
-export function getToggleShortcutPref(): string {
+// Atajo global de dictado, en formato del plugin de Tauri ("Alt+Space",
+// "Ctrl+Alt+D", …). Vacío = usar el default por plataforma que registra Rust.
+export function getShortcutPref(): string {
   try {
-    return (localStorage.getItem(KEY_SHORTCUT_TOGGLE) ?? "").trim();
+    return (localStorage.getItem(KEY_SHORTCUT) ?? "").trim();
   } catch {
     return "";
   }
 }
 
-export function setToggleShortcutPref(accelerator: string) {
+export function setShortcutPref(accelerator: string) {
   try {
-    if (accelerator) localStorage.setItem(KEY_SHORTCUT_TOGGLE, accelerator);
-    else localStorage.removeItem(KEY_SHORTCUT_TOGGLE);
-  } catch {
-    // ignore
-  }
-}
-
-export function getHoldShortcutPref(): string {
-  try {
-    return (localStorage.getItem(KEY_SHORTCUT_HOLD) ?? "").trim();
-  } catch {
-    return "";
-  }
-}
-
-export function setHoldShortcutPref(acceleratorOrNone: string) {
-  try {
-    if (acceleratorOrNone) localStorage.setItem(KEY_SHORTCUT_HOLD, acceleratorOrNone);
-    else localStorage.removeItem(KEY_SHORTCUT_HOLD);
+    if (accelerator) localStorage.setItem(KEY_SHORTCUT, accelerator);
+    else localStorage.removeItem(KEY_SHORTCUT);
   } catch {
     // ignore
   }

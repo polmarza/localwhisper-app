@@ -15,8 +15,8 @@ import { HelpScreen } from "./screens/Help";
 import { SettingsScreen } from "./screens/Settings";
 import { OnboardingFlow } from "./onboarding/OnboardingFlow";
 import { formatDuration, useRecorder, type RecorderResult } from "./hooks/useRecorder";
-import { pasteText, setShortcuts } from "./lib/tauri";
-import { getHoldAccelerator, getToggleAccelerator } from "./state/shortcuts";
+import { pasteText, setShortcut } from "./lib/tauri";
+import { getAccelerator } from "./state/shortcuts";
 import {
   clearTranscriptions,
   insertTranscription,
@@ -100,9 +100,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    // Rust registra los atajos por defecto al arrancar; aplicamos por encima
-    // los guardados del usuario (idempotente si coinciden con los defaults).
-    void setShortcuts(getToggleAccelerator(), getHoldAccelerator()).catch(() => {});
+    // Rust registra el atajo por defecto al arrancar; aplicamos por encima el
+    // guardado del usuario (idempotente si coincide con el default).
+    void setShortcut(getAccelerator()).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -360,7 +360,7 @@ function Dashboard({
   overQuotaRef.current = overQuota;
   dictionaryRef.current = dictionary.entries;
 
-  const { status, elapsedSec, toggle, start, stop } = useRecorder({
+  const { status, elapsedSec, toggle } = useRecorder({
     modelFile,
     language,
     deviceId: micDeviceId,
@@ -419,57 +419,17 @@ function Dashboard({
     toggle();
   }, [toggle]);
 
-  // Push-to-talk (atajo "hold"): pulsación en curso. Guardamos cuándo empezó
-  // para distinguir un toque rápido (<400 ms → se queda grabando, como un
-  // toggle) de un mantener real (al soltar → parar y transcribir).
-  const holdStartedAtRef = useRef<number | null>(null);
-
-  const onHoldPressed = useCallback(() => {
-    if (statusRef.current === "recording") {
-      // Repetición de tecla mientras se mantiene → ignorar. Solo una pulsación
-      // NUEVA (tras un toque rápido que dejó la grabación abierta) debe parar.
-      if (holdStartedAtRef.current !== null) return;
-      void stop();
-      return;
-    }
-    // Repetición de tecla mientras el micro aún arranca → no resetear el
-    // temporizador (rompería la detección de toque rápido vs mantener).
-    if (holdStartedAtRef.current !== null) return;
-    if (overQuotaRef.current) {
-      setLicenseModalOpen(true);
-      return;
-    }
-    holdStartedAtRef.current = Date.now();
-    void start();
-  }, [start, stop]);
-
-  const onHoldReleased = useCallback(() => {
-    const startedAt = holdStartedAtRef.current;
-    holdStartedAtRef.current = null;
-    if (startedAt === null) return;
-    // Toque rápido → dejamos la grabación abierta (comportamiento toggle).
-    if (Date.now() - startedAt < 400) return;
-    void stop();
-  }, [stop]);
-
-  // Global shortcut events from Rust. We pin the latest handlers in refs so the
-  // listeners (subscribed exactly once on mount) always call the current
-  // closures — otherwise React would re-subscribe on every status change and
-  // leak stale listeners that fire start() and stop() concurrently.
-  const toggleEvRef = useRef(guardedToggle);
-  toggleEvRef.current = guardedToggle;
-  const holdPressedRef = useRef(onHoldPressed);
-  holdPressedRef.current = onHoldPressed;
-  const holdReleasedRef = useRef(onHoldReleased);
-  holdReleasedRef.current = onHoldReleased;
+  // Global shortcut (⌥ Space) fires a "toggle-recording" event from Rust. We
+  // pin the latest `toggle` in a ref so the listener (subscribed exactly once
+  // on mount) always calls the current closure — otherwise React would
+  // re-subscribe on every status change and leak stale listeners that fire
+  // start() and stop() concurrently.
+  const toggleRef = useRef(guardedToggle);
+  toggleRef.current = guardedToggle;
   useEffect(() => {
-    const pToggle = listen<void>("shortcut-toggle", () => toggleEvRef.current());
-    const pPressed = listen<void>("shortcut-hold-pressed", () => holdPressedRef.current());
-    const pReleased = listen<void>("shortcut-hold-released", () => holdReleasedRef.current());
+    const promise = listen<void>("toggle-recording", () => toggleRef.current());
     return () => {
-      pToggle.then((fn) => fn());
-      pPressed.then((fn) => fn());
-      pReleased.then((fn) => fn());
+      promise.then((fn) => fn());
     };
   }, []);
 
