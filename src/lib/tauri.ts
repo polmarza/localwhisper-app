@@ -63,6 +63,17 @@ export async function setShortcut(accelerator: string): Promise<void> {
   return invoke("set_shortcut", { accelerator });
 }
 
+/**
+ * Desregistra el atajo global activo sin poner otro. Se usa mientras el
+ * grabador está escuchando: si el atajo actual sigue registrado a nivel de
+ * sistema, pulsarlo no llega como evento de teclado a la ventana (el SO lo
+ * intercepta antes) y el grabador nunca lo detecta. Restaura con
+ * `setShortcut` al terminar (con el nuevo, o con el anterior si se cancela).
+ */
+export async function disableShortcut(): Promise<void> {
+  return invoke("disable_shortcut");
+}
+
 export type PasteOutcome = {
   app: string | null;
   pasted: boolean;

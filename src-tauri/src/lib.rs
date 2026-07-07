@@ -790,6 +790,31 @@ fn set_shortcut(
     Ok(())
 }
 
+/// Desregistra el atajo activo sin poner otro en su lugar. Se llama al abrir
+/// el grabador de atajos: mientras el atajo actual siga registrado a nivel de
+/// SO, pulsarlo no llega como evento de teclado normal a la ventana (el SO lo
+/// intercepta antes) — así que grabar "la misma combinación que ya tienes"
+/// parecía no hacer nada. El frontend debe volver a llamar a `set_shortcut`
+/// (con el nuevo o, si cancela, con el mismo de antes) para dejar un atajo
+/// activo de nuevo.
+#[tauri::command]
+fn disable_shortcut(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ActiveShortcut>,
+) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let gs = app.global_shortcut();
+    let mut current = state
+        .0
+        .lock()
+        .map_err(|_| "estado de atajo bloqueado".to_string())?;
+    if !current.is_empty() {
+        let _ = gs.unregister(current.as_str());
+    }
+    *current = String::new();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -864,6 +889,7 @@ pub fn run() {
             raise_overlay,
             paste_text,
             set_shortcut,
+            disable_shortcut,
             license::license_get_state,
             license::license_activate,
             license::license_validate,

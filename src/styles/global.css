@@ -1101,6 +1101,16 @@ kbd {
 }
 .shortcut-recorder-keys { display: inline-flex; gap: 6px; align-items: center; }
 .shortcut-recorder-hint { font-size: 13.5px; color: var(--accent); }
+.shortcut-recorder-keys kbd[data-live] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  animation: shortcut-live-pulse 1s ease-in-out infinite;
+}
+@keyframes shortcut-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
 .shortcut-recorder-actions { display: flex; gap: 8px; }
 .shortcut-recorder-btn {
   font-size: 13px;
