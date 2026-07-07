@@ -12,12 +12,14 @@ import {
   IconLock,
   IconShield,
 } from "../components/Icons";
-import { Btn, Card, Kbd, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
+import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
+import { ShortcutRecorder } from "../components/ShortcutRecorder";
+import { getRecordingAccelerator } from "../state/shortcuts";
 import {
   listAllTranscriptions,
   listDictionaryEntries,
 } from "../lib/db";
-import { addInstalledTier, getInstalledTiers } from "../state/onboarding";
+import { addInstalledTier, getInstalledTiers, resetOnboarding } from "../state/onboarding";
 import { downloadWhisperModel, type ProgressEvent } from "../lib/tauri";
 import {
   getAutopaste,
@@ -275,6 +277,7 @@ export function SettingsScreen({
   const [storeLocal, setStoreLocalState] = useState(() => getStoreLocal());
   const [sounds, setSoundsState] = useState(() => getSounds());
   const [font, setFontState] = useState<TranscriptFont>(() => getTranscriptFont());
+  const [shortcutAccel, setShortcutAccel] = useState(() => getRecordingAccelerator());
 
   const persistAutopaste = (v: boolean) => {
     setAutopasteState(v);
@@ -494,6 +497,21 @@ export function SettingsScreen({
                 hint="Inserta el texto en la app activa al terminar de transcribir."
               >
                 <Toggle on={autopaste} onChange={persistAutopaste} />
+              </Row>
+              <Row
+                label="Ver la introducción otra vez"
+                hint="Repite la bienvenida completa: nombre, atajo, diccionario, tema y modelo. No pierdes tu historial ni tu licencia."
+              >
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    resetOnboarding();
+                    window.dispatchEvent(new CustomEvent("replay-onboarding"));
+                  }}
+                >
+                  Reiniciar
+                </Btn>
               </Row>
             </Card>
           )}
@@ -1050,16 +1068,13 @@ export function SettingsScreen({
             <Card padding={0}>
               <SectionHead
                 title="Atajos de teclado"
-                subtitle="Por ahora el atajo principal no es editable. La personalización llegará en una próxima versión."
+                subtitle="Elige la combinación que prefieras. Si ya está en uso por el sistema u otra app, te avisamos."
               />
               <Row
                 label="Empezar a dictar"
                 hint="Pulsa para iniciar o detener una grabación desde cualquier app."
               >
-                <div style={{ display: "inline-flex", gap: 3 }}>
-                  <Kbd>⌥</Kbd>
-                  <Kbd>Espacio</Kbd>
-                </div>
+                <ShortcutRecorder value={shortcutAccel} onChange={setShortcutAccel} />
               </Row>
             </Card>
           )}

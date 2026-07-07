@@ -115,6 +115,15 @@ export function App() {
     }
   }, []);
 
+  // Fired by "Ver la introducción otra vez" en Ajustes → General. Esa acción
+  // ya limpió los flags de onboarding en localStorage (resetOnboarding); aquí
+  // solo conmutamos el árbol de React sin recargar la ventana.
+  useEffect(() => {
+    const handler = () => setAppState({ kind: "onboarding" });
+    window.addEventListener("replay-onboarding", handler);
+    return () => window.removeEventListener("replay-onboarding", handler);
+  }, []);
+
   const onThemeChange = (id: ThemeId) => {
     setTheme(id);
     setThemeState(id);
