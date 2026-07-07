@@ -63,8 +63,10 @@ export function RecordingOverlay() {
         border: "1px solid rgba(42, 38, 32, 0.08)",
       };
 
+  // Timer/sub-text: derive from --accent-ink so it stays legible whatever the
+  // accent is. A hardcoded white vanished on light accents (mono/océano).
   const subTextColor = isAccentPhase
-    ? "rgba(255, 255, 255, 0.7)"
+    ? "var(--accent-ink)"
     : "rgba(42, 38, 32, 0.55)";
 
   const label = isRecording
@@ -143,6 +145,7 @@ export function RecordingOverlay() {
           <span
             style={{
               color: subTextColor,
+              opacity: isAccentPhase ? 0.72 : 1,
               fontSize: 13,
               fontFamily: '"JetBrains Mono", ui-monospace, monospace',
               fontVariantNumeric: "tabular-nums",
