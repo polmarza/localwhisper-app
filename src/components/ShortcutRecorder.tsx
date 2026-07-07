@@ -86,21 +86,27 @@ export function ShortcutRecorder({ value, onChange }: Props) {
 
   const commit = useCallback(
     async (accel: string) => {
+      console.info("[atajo] registrando:", accel);
       try {
         // El atajo anterior ya está desregistrado (disableShortcut), así que
         // esto solo tiene que registrar el nuevo.
         await applyShortcut(accel);
+        console.info("[atajo] registrado OK:", accel);
         saveShortcut(accel);
         onChange(accel);
         setRecording(false);
         setArmed(false);
         setLiveMods([]);
         setError(null);
-      } catch {
+      } catch (e) {
         // La combinación choca con otra cosa (SO u otra app). Nos quedamos
         // grabando para que pueda probar otra — el anterior sigue
         // desregistrado hasta que cancele o grabe una válida.
-        setError("Esa combinación ya está en uso por el sistema u otra app. Prueba otra.");
+        console.warn("[atajo] fallo al registrar:", e);
+        setError(
+          `No se pudo registrar esa combinación (${String(e)}). ` +
+            "Puede que ya esté en uso por el sistema u otra app — prueba otra.",
+        );
         setLiveMods([]);
       }
     },
@@ -115,10 +121,16 @@ export function ShortcutRecorder({ value, onChange }: Props) {
     // tienes nunca llegaría aquí (el SO la intercepta como atajo global
     // antes de que sea un evento de teclado normal).
     void disableShortcut()
-      .then(() => setArmed(true))
-      .catch(() => {
-        setError("No se pudo preparar el grabador. Inténtalo de nuevo.");
-        setRecording(false);
+      .then(() => {
+        console.info("[atajo] grabador armado (atajo anterior liberado)");
+        setArmed(true);
+      })
+      .catch((e) => {
+        // Aun si falla (p. ej. binario Rust antiguo sin el comando), armamos
+        // igual: se puede grabar cualquier combinación menos la que ya está
+        // activa (esa la seguirá interceptando el SO).
+        console.warn("[atajo] disable_shortcut falló, grabando igualmente:", e);
+        setArmed(true);
       });
   };
 
@@ -137,6 +149,11 @@ export function ShortcutRecorder({ value, onChange }: Props) {
     const onKeyDown = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      console.info(
+        "[atajo] keydown:",
+        e.code,
+        { meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey },
+      );
       if (e.key === "Escape") {
         cancelRecording();
         return;
