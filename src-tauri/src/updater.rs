@@ -15,7 +15,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-const UPDATES_BASE: &str = "https://downloads.localwhisper.app/updates";
+const UPDATES_BASE: &str = "https://releases.localwhisper.app/updates";
 
 fn manifest_url(channel: &str) -> String {
     // Cualquier valor que no sea "preview" cae a stable, por seguridad.
