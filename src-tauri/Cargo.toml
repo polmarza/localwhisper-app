@@ -1,6 +1,6 @@
 [package]
 name = "local-whisper"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local Whisper — voz a texto privado en tu Mac, con Whisper local."
 authors = ["Pol"]
 edition = "2021"
