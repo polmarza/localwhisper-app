@@ -48,6 +48,7 @@ export const IconChevD = (p: IconProps) => <Icon {...p}><path d="m4 7 5 5 5-5"/>
 export const IconCopy = (p: IconProps) => <Icon {...p}><rect x="6" y="6" width="9" height="9" rx="1.5"/><path d="M11 6V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></Icon>;
 export const IconCheck = (p: IconProps) => <Icon {...p}><path d="m3.5 9.5 3.5 3.5 8-8"/></Icon>;
 export const IconX = (p: IconProps) => <Icon {...p}><path d="m4 4 10 10M14 4 4 14"/></Icon>;
+export const IconTrash = (p: IconProps) => <Icon {...p}><path d="M3.5 5h11M7.5 5V3.5h3V5M5 5l.7 9a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9L13 5"/></Icon>;
 export const IconLock = (p: IconProps) => <Icon {...p}><rect x="3" y="8" width="12" height="8" rx="1.5"/><path d="M5.5 8V5.5a3.5 3.5 0 0 1 7 0V8"/></Icon>;
 export const IconArrowUp = (p: IconProps) => <Icon {...p}><path d="M9 14V4M4 9l5-5 5 5"/></Icon>;
 export const IconArrowDn = (p: IconProps) => <Icon {...p}><path d="M9 4v10M4 9l5 5 5-5"/></Icon>;

@@ -85,6 +85,12 @@ export async function clearTranscriptions(): Promise<void> {
   await db.execute("DELETE FROM transcriptions");
 }
 
+/** Borra una transcripción concreta del historial. Irreversible. */
+export async function deleteTranscription(id: number): Promise<void> {
+  const db = await getDb();
+  await db.execute("DELETE FROM transcriptions WHERE id = $1", [id]);
+}
+
 export type DictionaryEntry = {
   id: number;
   term: string;

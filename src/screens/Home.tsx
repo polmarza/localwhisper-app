@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconCheck, IconCopy } from "../components/Icons";
+import { IconCheck, IconCopy, IconTrash, IconX } from "../components/Icons";
 import { HeroBanner } from "../components/HeroBanner";
 import { Card, Pill, inputStyle } from "../components/Ui";
 import {
   addDictionaryEntry,
   listAllForStats,
+  deleteTranscription,
   listTranscriptions,
   type StatsRow,
   type TranscriptionRow,
@@ -201,11 +202,17 @@ function DictionaryPopover({
 function TranscriptItem({
   t,
   onAddToDictionary,
+  onDelete,
 }: {
   t: Transcript;
   onAddToDictionary: (term: string, replacement: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const [copied, setCopied] = useState(false);
+  // Borrar es irreversible, así que el botón pide confirmación en la propia
+  // fila en vez de abrir un diálogo: un clic arma, el segundo borra.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
@@ -214,6 +221,22 @@ function TranscriptItem({
     navigator.clipboard?.writeText(t.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onDelete(t.id);
+    } catch (err) {
+      console.error("deleteTranscription failed", err);
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
   };
 
   // We listen on mouseup *and* selectionchange so a selection that finishes
@@ -334,6 +357,73 @@ function TranscriptItem({
         >
           {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
         </button>
+
+        {confirmDelete ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDelete(false);
+              }}
+              title="Cancelar"
+              disabled={deleting}
+              style={{
+                width: 28,
+                height: 28,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 7,
+                border: "1px solid var(--line)",
+                background: "var(--surface)",
+                color: "var(--ink-2)",
+                cursor: "pointer",
+              }}
+            >
+              <IconX size={14} />
+            </button>
+            <button
+              onClick={handleDelete}
+              title="Confirmar borrado"
+              disabled={deleting}
+              style={{
+                height: 28,
+                padding: "0 10px",
+                display: "inline-flex",
+                alignItems: "center",
+                borderRadius: 7,
+                border: "1px solid var(--danger)",
+                background: "var(--danger)",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: deleting ? "default" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {deleting ? "Borrando…" : "Borrar"}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleDelete}
+            title="Eliminar del historial"
+            style={{
+              width: 28,
+              height: 28,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 7,
+              border: "1px solid var(--line)",
+              background: "var(--surface)",
+              color: "var(--ink-3)",
+              cursor: "pointer",
+            }}
+          >
+            <IconTrash size={14} />
+          </button>
+        )}
       </div>
 
       {selection && (
@@ -411,6 +501,20 @@ export function HomeScreen({
 }) {
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
   const [statsRows, setStatsRows] = useState<StatsRow[]>([]);
+
+  // Borrado de una transcripción. Quitamos la fila del estado local en vez de
+  // recargar toda la lista: es instantáneo y no hace parpadear el historial.
+  // Las métricas de la cabecera sí se releen, porque se calculan sobre el
+  // total y si no quedarían desfasadas.
+  const handleDelete = async (id: string) => {
+    await deleteTranscription(Number(id));
+    setTranscripts((prev) => prev.filter((t) => t.id !== id));
+    try {
+      setStatsRows(await listAllForStats());
+    } catch (e) {
+      console.error("listAllForStats failed after delete", e);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -573,6 +677,7 @@ export function HomeScreen({
                   key={t.id}
                   t={t}
                   onAddToDictionary={addToDictionary}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
