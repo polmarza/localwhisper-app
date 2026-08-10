@@ -45,12 +45,7 @@ import {
   type ThemeMode,
 } from "../state/theme";
 import { TIERS, findTier, tierForFile } from "../state/tiers";
-import {
-  SUPPORT_URL,
-  isSupporter,
-  maskKey,
-  type LicenseState,
-} from "../state/license";
+import { SUPPORT_URL } from "../state/support";
 import { openUrl } from "../lib/tauri";
 
 import { LANGUAGES } from "../state/languages";
@@ -302,13 +297,10 @@ export function SettingsScreen({
   textScale = 1.0,
   onTextScaleChange,
   initialSection = "general",
-  licenseState,
   updateState,
   onCheckUpdate,
   onInstallUpdate,
   onRestartApp,
-  onOpenSupport,
-  onDeactivateLicense,
 }: {
   activeModelFile?: string;
   onModelChange?: (file: string) => void;
@@ -324,18 +316,14 @@ export function SettingsScreen({
   textScale?: number;
   onTextScaleChange?: (n: number) => void;
   initialSection?: SettingsSection;
-  licenseState?: LicenseState | null;
   updateState?: UpdateState;
   onCheckUpdate?: () => void;
   onInstallUpdate?: () => void;
   onRestartApp?: () => void;
-  onOpenSupport?: () => void;
-  onDeactivateLicense?: () => Promise<void> | void;
 } = {}) {
   const activeTierId = activeModelFile ? tierForFile(activeModelFile) : null;
   const activeTier = activeTierId ? findTier(activeTierId) : null;
   // Premium (trial or active key) unlocks the arena/bosque themes. Pizarra is
-  const supporter = licenseState ? isSupporter(licenseState) : false;
   const [section, setSection] = useState<SettingsSection>(initialSection);
   // Persisted prefs are read once on mount; the setters below update local
   // state (for the UI) and write to localStorage (for the recorder to read
@@ -1165,71 +1153,18 @@ export function SettingsScreen({
                 <Pill tone="good">Gratis</Pill>
               </Row>
 
-              {supporter ? (
-                <>
-                  <Row
-                    label="Gracias de verdad"
-                    hint="Has apoyado el proyecto. Se agradece muchísimo — ayuda a que siga vivo."
-                  >
-                    <Pill tone="good">Mecenas</Pill>
-                  </Row>
-                  {licenseState?.key && (
-                    <Row label="Clave" hint="Por seguridad solo mostramos parte.">
-                      <span
-                        className="mono"
-                        style={{ fontSize: 13, color: "var(--ink-2)" }}
-                      >
-                        {maskKey(licenseState.key)}
-                      </span>
-                    </Row>
-                  )}
-                  <Row
-                    label="Liberar este equipo"
-                    hint="Suelta la activación si quieres usar la clave en otro equipo."
-                  >
-                    <button
-                      onClick={() => void onDeactivateLicense?.()}
-                      style={{
-                        height: 32,
-                        padding: "0 14px",
-                        borderRadius: 7,
-                        border:
-                          "1px solid color-mix(in oklch, var(--danger) 35%, transparent)",
-                        background: "transparent",
-                        color: "var(--danger)",
-                        fontSize: 12.5,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Liberar
-                    </button>
-                  </Row>
-                </>
-              ) : (
-                <>
-                  <Row
-                    label="Invítame a un café"
-                    hint="La desarrollo yo solo en mis ratos libres. Si te ahorra tiempo cada día y te apetece echar una mano, puedes aportar lo que quieras. Totalmente opcional."
-                  >
-                    <Btn
-                      variant="primary"
-                      size="sm"
-                      onClick={() => void openUrl(SUPPORT_URL)}
-                    >
-                      Apoyar
-                    </Btn>
-                  </Row>
-                  <Row
-                    label="Ya tengo una clave"
-                    hint="Si has apoyado el proyecto, activa aquí la clave que recibiste por email."
-                  >
-                    <Btn variant="ghost" size="sm" onClick={() => onOpenSupport?.()}>
-                      Introducir clave
-                    </Btn>
-                  </Row>
-                </>
-              )}
+              <Row
+                label="Invítame a un café"
+                hint="La desarrollo yo solo en mis ratos libres. Si te ahorra tiempo cada día y te apetece echar una mano, puedes invitarme a un café. Totalmente opcional — y sin nada a cambio, porque ya lo tienes todo."
+              >
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => void openUrl(SUPPORT_URL)}
+                >
+                  ☕ Invitar a un café
+                </Btn>
+              </Row>
             </Card>
           )}
 

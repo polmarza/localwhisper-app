@@ -1,4 +1,3 @@
-mod license;
 mod updater;
 mod usage;
 
@@ -14,7 +13,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 use whisper_rs::{WhisperContext, WhisperContextParameters};
 
-use license::LicenseStore;
 
 // ---------------------------------------------------------------------------
 // Streaming download progress (Whisper models)
@@ -840,11 +838,6 @@ pub fn run() {
             apply_shortcut(&app.handle().clone(), shortcut_default)
                 .map_err(|e| format!("atajo por defecto: {e}"))?;
 
-            // Load (or create on first boot) the license state from
-            // AppData/license.json so commands can read/write it.
-            let license_store = LicenseStore::load(app.handle())
-                .map_err(|e| format!("license init: {e}"))?;
-            app.manage(license_store);
 
             // Holds the loaded Whisper model between dictations so it isn't
             // re-read from disk on every transcription.
@@ -876,10 +869,6 @@ pub fn run() {
             raise_overlay,
             paste_text,
             set_shortcut,
-            license::license_get_state,
-            license::license_activate,
-            license::license_validate,
-            license::license_deactivate,
             usage::usage_get_state,
             usage::usage_add_words,
             updater::check_for_update,

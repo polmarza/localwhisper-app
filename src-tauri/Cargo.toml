@@ -25,7 +25,6 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 futures-util = "0.3"
 tokio = { version = "1", features = ["fs", "io-util", "sync", "time"] }
-uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 tauri-plugin-updater = "2.10.1"

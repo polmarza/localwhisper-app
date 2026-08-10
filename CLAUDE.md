@@ -50,7 +50,7 @@ Whisper large-v3-turbo es lo más nuevo que existe (no hay v4); ya lo usan los t
 - **Relleno de silencio:** `transcribe_audio` añade 500 ms de ceros al inicio **y al final** del audio. Sin el del final, whisper se come la última palabra cuando paras justo al terminar de hablar (igual que se comía la primera sin el del inicio).
 
 ## Temas
-- 7 temas × 2 modos: `pizarra` (gratis, default), `arena`, `bosque`, `coral`, `medianoche`, `oceano`, `mono` ("Blanco y negro") en `light` y `dark`. Todos menos `pizarra` son premium.
+- 7 temas × 2 modos: `pizarra` (default), `arena`, `bosque`, `coral`, `medianoche`, `oceano`, `mono` ("Blanco y negro") en `light` y `dark`. **Todos disponibles para todo el mundo** (ya no hay temas premium).
 - CSS aplicado vía `body[data-palette="${id}-${mode}"]` — cada tema = 2 bloques (light+dark) con ~19 variables en `src/styles/global.css`. Al añadir uno hay que tocar además el grupo `--dot-rest` y la línea de `background` de scrollbar.
 - Definidos en `src/state/theme.ts` (array `THEMES`, tipo `ThemeId`) y `src/styles/global.css`
 - Las dos claves de localStorage: `localwhisper.theme` y `localwhisper.themeMode`
@@ -73,64 +73,45 @@ Corrige cómo se escriben nombres/marcas/expresiones en la transcripción.
 - Base de datos SQLite: `localwhisper.db`
 - Nombre del crate Rust: `localwhisper`
 
-## Sistema de licencias
+## Modelo: gratis, con apoyo voluntario
 
-### Modelo
-- **Freemium con tope semanal:** la transcripción es gratis pero **limitada a 2.000 palabras/semana** para usuarios sin licencia (modelo estilo Wispr Flow). El trial y la licencia dan transcripción **ilimitada**. Al agotar el tope, se bloquea *iniciar* un dictado nuevo (upsell) hasta que se renueva la semana o se activa una clave.
-- **Premium (trial o licencia) desbloquea:** transcripción ilimitada + la pantalla de **Estadísticas** (`insights`) + los **temas `arena` y `bosque`**. El tema `pizarra` es el gratuito por defecto. (La transcripción en directo era premium, pero está **retirada/oculta** — ver Rendimiento.)
-- **14 días de trial premium:** durante los primeros 14 días todo va sin límites. Al caducar sin clave válida → tope de 2.000 palabras/semana y se bloquean Estadísticas / VAD / arena·bosque (fallback automático a `pizarra`).
-- **Pago único lifetime** vía Lemon Squeezy (**precio de salida 29 €**, a subir más adelante).
-- **3 activaciones por licencia** (configurado en el dashboard de LS)
+**Local Whisper es GRATIS y no bloquea absolutamente nada.** Sin tope de
+palabras, sin trial que caduque, sin funciones premium. Todas las pantallas
+(incluida Estadísticas) y los 7 temas están disponibles para todo el mundo.
 
-Implementación del gating (todo en frontend; Rust calcula `status` y lleva el contador):
-- `hasPremium(state)` en `src/state/license.ts` — antes era `canRecord`.
-- **Tope semanal:** contador en Rust `src-tauri/src/usage.rs` (`UsageStore` → `AppData/usage.json`, **no localStorage**, para que borrar la caché no lo resetee). Comandos `usage_get_state` / `usage_add_words`, con reset por semanas. Frontend: `src/state/usage.ts` (`WEEKLY_WORD_CAP = 2000`, `countWords`, `wordsRemaining`) + `useUsage`. En `App.tsx`: se cuentan palabras en `onResult` (solo si no premium) y `guardedToggle` bloquea iniciar si `overQuota`. El `LicenseBanner` muestra las palabras restantes.
-- `isPremiumTheme(id)` / `FREE_THEME` en `src/state/theme.ts`.
-- `App.tsx` — bloqueo de Estadísticas (`<PremiumLocked>`), candado en el nav (`Sidebar`) y auto-downgrade de tema al caducar el premium.
-- `Settings.tsx` — candado en el selector de temas premium y en el toggle de VAD.
+El único punto de monetización es un **"invítame a un café" opcional**:
+- Enlace a **Buy Me a Coffee** (`https://buymeacoffee.com/polmarza`), definido
+  en `src/state/support.ts` (constante `SUPPORT_URL`). Es el **único** sitio
+  donde vive la URL.
+- **Ajustes → Apoyar**: una fila con el enlace. Nada más.
+- **`SupportModal`** (`src/components/SupportModal.tsx`): aviso amable que
+  aparece **una sola vez**, tras `SUPPORT_PROMPT_AFTER_DICTATIONS` (50)
+  dictados — nunca al abrir la app por primera vez. Se silencia para siempre
+  con `localwhisper.supportDismissed`. Nunca bloquea.
 
-### Fuente de verdad
-El estado vive en `AppData/license.json` — **NO en localStorage**. Esto es deliberado: borrar la caché de WebKit no debe resetear el trial ni perder la clave.
+Prefs relacionadas en `src/state/preferences.ts`: `localwhisper.dictationCount`
+(contador de dictados) y `localwhisper.supportDismissed`.
 
-Estructura del archivo:
-```json
-{
-  "first_launch": "ISO datetime",
-  "machine_id": "UUID generado en primera ejecución",
-  "key": "clave introducida o null",
-  "instance_id": "ID que devuelve Lemon Squeezy al /activate",
-  "status": "trial | active | expired | invalid",
-  "last_validated_at": "ISO datetime o null",
-  "activation_limit": 3,
-  "activation_usage": 1
-}
-```
+### Por qué gratis (contexto de la decisión)
+Construir se disfruta; vender, no. Un producto de pago exige venderlo cada día
+y ese trabajo no se estaba haciendo. Al ser gratis, el outreach a creadores deja
+de ser "vender" y pasa a ser "compartir", que es mucho menos costoso. Además, al
+procesarse todo en local **no hay nada que vender**: eso convierte el "es gratis"
+de sospecha en prueba de la promesa de privacidad.
 
-### Endpoints de Lemon Squeezy usados
-Los tres no requieren API key secreta — solo la `license_key`:
-- `POST /v1/licenses/activate` — primera activación (genera `instance_id`)
-- `POST /v1/licenses/validate` — revalidación periódica (cada 7 días)
-- `POST /v1/licenses/deactivate` — libera una activación
+### ⚠️ Lemon Squeezy: retirado
+El sistema de licencias (trial de 14 días, tope de 2.000 palabras/semana,
+activación/validación contra Lemon Squeezy, temas premium) **se eliminó por
+completo**. Ya no existen `src-tauri/src/license.rs`, `src/state/license.ts`,
+`src/hooks/useLicense.ts`, `LicenseModal`, `LicenseBanner`, `PremiumLocked` ni
+el paso de licencia del onboarding. Buy Me a Coffee no emite claves, así que no
+hay nada que activar.
 
-Implementado en `src-tauri/src/license.rs` (no en JS) para evitar que DevTools muestre fácilmente las peticiones.
+Si algún día hiciera falta recuperarlo, está en el historial de git.
 
-### Archivos clave
-- `src-tauri/src/license.rs` — módulo Rust con la lógica y los comandos Tauri
-- `src/state/license.ts` — tipos y wrappers
-- `src/hooks/useLicense.ts` — hook React
-- `src/components/TrialBanner.tsx` — banner de cuenta atrás
-- `src/components/LicenseModal.tsx` — modal de activación
-- Sección "Licencia" en `src/screens/Settings.tsx`
+`src-tauri/src/usage.rs` **sí se conserva**: sigue contando palabras
+(`AppData/usage.json`), pero solo para alimentar Estadísticas. No hay tope.
 
-### Lemon Squeezy
-- Cuenta: `local-whisper.lemonsqueezy.com`
-- Producto: "Local Whisper — Licencia" (lifetime, 3 activaciones, license keys ON), **precio de salida 29 €**
-- Checkout URL (**LIVE / producción**): `https://local-whisper.lemonsqueezy.com/checkout/buy/822299b8-b059-41c5-a8d4-ce56c3ef3e81` (configurada en `src/state/license.ts` como `PURCHASE_URL`)
-- URL antigua de TEST (por si hay que volver a probar en test mode): `…/checkout/buy/b2ace9f5-c28b-49de-a877-229ff41d481a`
-
-**✅ Ya en producción.** Antes de lanzar se hizo: desactivar Test Mode, recrear el producto en live (lifetime, 3 activations, license keys ON, tax category Software), y actualizar `PURCHASE_URL`. Verificar que los payouts (Stripe) apuntan a banco real.
-
-⚠️ **Ojo:** los entornos test/live están completamente separados — las license keys de test NO funcionan en live y viceversa. Para probar pagos reales, tarjeta de Stripe en modo test ya no aplica; usa el flujo live real (o vuelve a la URL de test arriba).
 
 ## Atajo de teclado global
 

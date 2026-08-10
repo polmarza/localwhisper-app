@@ -59,8 +59,6 @@ import {
 } from "./state/theme";
 import { findTier, tierForFile } from "./state/tiers";
 import { countWords } from "./state/usage";
-import { isSupporter } from "./state/license";
-import { useLicense } from "./hooks/useLicense";
 import { useUsage } from "./hooks/useUsage";
 import { useDictionary } from "./hooks/useDictionary";
 import { applyDictionary } from "./lib/dictionary";
@@ -345,9 +343,8 @@ function Dashboard({
   };
 
   // Local Whisper es GRATIS: nada está bloqueado, ni la grabación, ni las
-  // Estadísticas, ni los temas. La licencia solo existe como apoyo voluntario
-  // — quien activa una clave recibe las gracias y deja de ver el aviso.
-  const license = useLicense();
+  // Estadísticas, ni los temas. Lo único que queda es un "invítame a un café"
+  // opcional, que se puede silenciar para siempre.
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   // true cuando el modal lo ha abierto el aviso automático (tras N dictados) y
   // no un clic explícito: solo entonces "cerrar" significa "no preguntar más".
@@ -361,7 +358,6 @@ function Dashboard({
   dictionaryRef.current = dictionary.entries;
   openSupportPromptRef.current = () => {
     if (getSupportDismissed()) return;
-    if (license.state && isSupporter(license.state)) return;
     setSupportAuto(true);
     setSupportModalOpen(true);
   };
@@ -528,22 +524,10 @@ function Dashboard({
                 textScale={textScale}
                 onTextScaleChange={onTextScaleChange}
                 initialSection={pendingSettingsSection}
-                licenseState={license.state}
                 updateState={updater.state}
                 onCheckUpdate={() => void updater.check(false)}
                 onInstallUpdate={updater.install}
                 onRestartApp={updater.restart}
-                onOpenSupport={() => {
-                  setSupportAuto(false);
-                  setSupportModalOpen(true);
-                }}
-                onDeactivateLicense={async () => {
-                  try {
-                    await license.deactivate();
-                  } catch (err) {
-                    console.error("license deactivate failed", err);
-                  }
-                }}
               />
             )}
           </div>
@@ -552,10 +536,6 @@ function Dashboard({
       {supportModalOpen && (
         <SupportModal
           auto={supportAuto}
-          onActivate={async (key) => {
-            await license.activate(key);
-            setSupportModalOpen(false);
-          }}
           onClose={() => {
             // Solo el aviso automático se silencia para siempre; si lo abrió la
             // persona desde Ajustes, cerrarlo no cambia nada.
