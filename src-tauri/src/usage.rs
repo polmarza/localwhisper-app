@@ -1,10 +1,9 @@
-//! Free-tier weekly word quota.
+//! Weekly dictated-word counter.
 //!
-//! Free (non-premium) users can transcribe up to `WEEKLY_CAP` words per week;
-//! trial and licensed users are unlimited and never touch this. Like the
-//! license, the counter lives in `AppData/usage.json` — NOT localStorage — so
-//! clearing the WebKit cache can't reset the quota. The frontend owns the cap
-//! value and the gating; Rust just tracks the count and rolls the week over.
+//! ⚠️ Ya NO hay tope: Local Whisper es gratis y la transcripción es ilimitada.
+//! Este contador solo alimenta la pantalla de Estadísticas. Vive en
+//! `AppData/usage.json` — NOT localStorage — so clearing the WebKit cache
+//! can't reset it. Rust just tracks the count and rolls the week over.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -18,9 +17,9 @@ const WEEK_DAYS: i64 = 7;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageState {
-    /// Start of the current quota week.
+    /// Start of the current counting week.
     pub week_start: DateTime<Utc>,
-    /// Words transcribed by the free tier within the current week.
+    /// Words transcribed within the current week.
     pub words_used: u32,
 }
 

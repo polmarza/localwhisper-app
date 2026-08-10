@@ -1,9 +1,15 @@
-//! License management — first-launch trial + Lemon Squeezy activation.
+//! Apoyo voluntario — activación de claves vía Lemon Squeezy.
+//!
+//! ⚠️ Local Whisper es GRATIS: nada de lo que hay aquí bloquea ninguna función.
+//! Este módulo solo gestiona las claves de quien decide apoyar el proyecto, para
+//! que la app pueda darle las gracias y dejar de mostrarle el aviso. Los estados
+//! `Trial`/`Expired` se siguen calculando por compatibilidad con el fichero de
+//! estado existente, pero no gobiernan nada.
 //!
 //! State of truth lives in `AppData/license.json`, NOT in localStorage. This is
-//! deliberate: clearing the browser cache must not reset the trial counter or
-//! orphan a valid license. The frontend reads state by calling Tauri commands;
-//! it never writes to disk directly.
+//! deliberate: clearing the browser cache must not orphan an activated key. The
+//! frontend reads state by calling Tauri commands; it never writes to disk
+//! directly.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -50,10 +56,11 @@ pub enum LicenseStatus {
     Trial,
     /// Key activated and confirmed by Lemon Squeezy.
     Active,
-    /// Trial elapsed, no valid key. Recording is blocked.
+    /// Trial elapsed, no key. La app sigue funcionando entera — este estado
+    /// ya no bloquea nada, solo significa "aún no ha apoyado el proyecto".
     Expired,
     /// Key was valid but Lemon Squeezy has since marked it invalid (refund,
-    /// chargeback, disabled in dashboard). Recording is blocked.
+    /// chargeback, disabled in dashboard). Tampoco bloquea nada.
     Invalid,
 }
 

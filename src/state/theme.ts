@@ -19,8 +19,6 @@ export type Theme = {
   id: ThemeId;
   label: string;
   accent: string; // same accent in both modes
-  /** Requires an active license / trial. Pizarra is the free default. */
-  premium?: boolean;
   preview: {
     light: { bg: string };
     dark: { bg: string };
@@ -41,7 +39,6 @@ export const THEMES: Theme[] = [
     id: "arena",
     label: "Arena",
     accent: "#c0651e",
-    premium: true,
     preview: {
       light: { bg: "#fbf8f3" },
       dark: { bg: "#1f1d1a" },
@@ -51,7 +48,6 @@ export const THEMES: Theme[] = [
     id: "bosque",
     label: "Bosque",
     accent: "#4f7d50",
-    premium: true,
     preview: {
       light: { bg: "#f3f5f0" },
       dark: { bg: "#161a16" },
@@ -61,7 +57,6 @@ export const THEMES: Theme[] = [
     id: "coral",
     label: "Coral",
     accent: "#e0603c",
-    premium: true,
     preview: {
       light: { bg: "#fdf6f3" },
       dark: { bg: "#211a17" },
@@ -71,7 +66,6 @@ export const THEMES: Theme[] = [
     id: "medianoche",
     label: "Medianoche",
     accent: "#4f8bff",
-    premium: true,
     preview: {
       light: { bg: "#f2f4f8" },
       dark: { bg: "#0b0f1a" },
@@ -81,7 +75,6 @@ export const THEMES: Theme[] = [
     id: "oceano",
     label: "Océano",
     accent: "#0d9488",
-    premium: true,
     preview: {
       light: { bg: "#f0f7f6" },
       dark: { bg: "#0e1817" },
@@ -91,7 +84,6 @@ export const THEMES: Theme[] = [
     id: "mono",
     label: "Blanco y negro",
     accent: "#808080",
-    premium: true,
     preview: {
       light: { bg: "#f6f6f6" },
       dark: { bg: "#131313" },
@@ -99,8 +91,8 @@ export const THEMES: Theme[] = [
   },
 ];
 
-// Pizarra is the only theme available without a license — it's the free
-// default. Every other theme is premium (unlocked during trial / with a key).
+// Todos los temas están disponibles para todo el mundo: la app es gratis y no
+// hay nada bloqueado. Pizarra es simplemente el tema por defecto.
 const DEFAULT_THEME: ThemeId = "pizarra";
 const DEFAULT_MODE: ThemeMode = "light";
 
@@ -158,10 +150,3 @@ export function findTheme(id: ThemeId): Theme {
   return t;
 }
 
-/** True if the theme requires a license (everything except pizarra). */
-export function isPremiumTheme(id: ThemeId): boolean {
-  return THEMES.find((t) => t.id === id)?.premium === true;
-}
-
-/** The free theme non-premium users fall back to. */
-export const FREE_THEME: ThemeId = "pizarra";

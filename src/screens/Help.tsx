@@ -306,7 +306,7 @@ function Privacy() {
     },
     {
       title: "Sin cuenta",
-      desc: "No tienes que crear un usuario. Compras la licencia, recibes una clave, la pegas en la app. Listo.",
+      desc: "No tienes que crear un usuario ni registrarte. Descargas la app y dictas. Ya está.",
     },
     {
       title: "Audio efímero",
@@ -385,7 +385,7 @@ function Privacy() {
 const FAQ_ITEMS: Array<{ q: string; a: ReactNode }> = [
   {
     q: "¿De verdad no envía nada a internet?",
-    a: "La única vez que la app contacta con un servidor es al descargar el modelo la primera vez y para validar tu licencia cada 7 días. La transcripción en sí es 100% local, ejecutada en tu ordenador.",
+    a: "La única vez que la app contacta con un servidor es al descargar el modelo la primera vez y al comprobar si hay actualizaciones. La transcripción en sí es 100% local, ejecutada en tu ordenador — de hecho funciona en modo avión.",
   },
   {
     q: "¿Qué precisión tiene comparado con los servicios online?",
@@ -405,7 +405,7 @@ const FAQ_ITEMS: Array<{ q: string; a: ReactNode }> = [
   },
   {
     q: "¿Qué pasa si cambio de ordenador?",
-    a: "Desactiva la licencia desde Ajustes → Licencia en el equipo antiguo (libera una activación) y actívala en el nuevo. Tienes 3 activaciones simultáneas, así que también puedes mantener varias a la vez.",
+    a: "Nada: instala la app en el equipo nuevo y listo. Es gratis y puedes usarla en todos los ordenadores que quieras. El historial vive en cada equipo, así que si quieres conservarlo puedes exportarlo desde Ajustes → Privacidad.",
   },
   {
     q: "¿Dónde se guarda mi historial?",

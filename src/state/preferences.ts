@@ -14,6 +14,8 @@ const KEY_SIDEBAR_WIDTH = "localwhisper.sidebarWidth";
 const KEY_USER_NAME = "localwhisper.userName";
 const KEY_SHORTCUT = "localwhisper.shortcut";
 const KEY_UPDATE_CHANNEL = "localwhisper.updateChannel";
+const KEY_DICTATION_COUNT = "localwhisper.dictationCount";
+const KEY_SUPPORT_DISMISSED = "localwhisper.supportDismissed";
 
 function readBool(key: string, defaultValue: boolean): boolean {
   try {
@@ -147,6 +149,41 @@ export function setUpdateChannel(channel: UpdateChannel) {
     // ignore
   }
 }
+
+// ---------------------------------------------------------------------------
+// Aviso de apoyo
+// ---------------------------------------------------------------------------
+// La app es gratis y nunca bloquea nada. Solo pedimos apoyo UNA vez, y siempre
+// DESPUÉS de que la persona le haya sacado partido — nunca al abrirla por
+// primera vez. El umbral son dictados completados, no días: alguien que la usa
+// a diario llega en una semana; quien la abrió por curiosidad no lo ve nunca.
+export const SUPPORT_PROMPT_AFTER_DICTATIONS = 50;
+
+/** Nº de dictados completados. Alimenta el umbral del aviso de apoyo. */
+export function getDictationCount(): number {
+  try {
+    const n = parseInt(localStorage.getItem(KEY_DICTATION_COUNT) ?? "0", 10);
+    return Number.isNaN(n) ? 0 : n;
+  } catch {
+    return 0;
+  }
+}
+
+export function bumpDictationCount(): number {
+  const next = getDictationCount() + 1;
+  try {
+    localStorage.setItem(KEY_DICTATION_COUNT, String(next));
+  } catch {
+    // ignore
+  }
+  return next;
+}
+
+/** True una vez que la persona ha cerrado el aviso de apoyo. Es para siempre:
+ *  no volvemos a insistir nunca. Siempre queda Ajustes → Apoyar el proyecto. */
+export const getSupportDismissed = () => readBool(KEY_SUPPORT_DISMISSED, false);
+export const setSupportDismissed = (v: boolean) =>
+  writeBool(KEY_SUPPORT_DISMISSED, v);
 
 // MediaDeviceInfo.deviceId, or null for the system default.
 export function getMicDeviceId(): string | null {

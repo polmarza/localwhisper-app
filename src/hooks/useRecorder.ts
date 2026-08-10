@@ -41,7 +41,7 @@ export function useRecorder(opts: {
   language?: string;
   // MediaDeviceInfo.deviceId, or null/undefined to use the system default.
   deviceId?: string | null;
-  // Whether live (VAD) transcription is allowed — it's a premium feature, so a
+  // Whether live (VAD) transcription is allowed — kept as a flag because the
   // lapsed user falls back to the classic transcribe-on-stop path even if the
   // pref is still on. Defaults to true.
   streamingAllowed?: boolean;

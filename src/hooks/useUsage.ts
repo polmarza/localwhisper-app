@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { addUsageWords, getUsageState, type UsageState } from "../state/usage";
 
 /**
- * Loads the free-tier weekly word usage and exposes a helper to add words
- * after a transcription. Only meaningful for non-premium users — callers gate
- * on premium before counting.
+ * Loads the dictated-word counter and exposes a helper to add words after a
+ * transcription. No hay tope: solo alimenta las Estadísticas.
  */
 export function useUsage() {
   const [state, setState] = useState<UsageState | null>(null);

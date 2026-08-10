@@ -2,7 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 
 // Rust is the source of truth — see src-tauri/src/license.rs. This module is
 // just a thin typed wrapper. We never touch localStorage for license data;
-// clearing the WebKit cache must not affect the trial counter.
+// clearing the WebKit cache must not lose an activated support key.
+//
+// ⚠️ Local Whisper es GRATIS: la app no bloquea nada. Todo lo que hay aquí es
+// el flujo opcional de "apoyar el proyecto" — quien quiera puede comprar una
+// licencia de apoyo y activarla para que la app le dé las gracias y deje de
+// mostrar el aviso. Los estados "trial"/"expired" los sigue calculando Rust
+// pero ya no gobiernan ninguna función.
 
 export type LicenseStatus = "trial" | "active" | "expired" | "invalid";
 
@@ -17,17 +23,12 @@ export type LicenseState = {
   activation_usage: number | null;
 };
 
-export const TRIAL_DAYS = 14;
-
-// Página de precios de la landing (3 tramos: 1/2/3 equipos → 29/39/49 €).
-// Se abre en el navegador al pulsar "Comprar" desde cualquier punto de
-// activación (banner, modal, onboarding, Settings → Licencia). Apuntamos a la
-// web —y no a un checkout fijo de Lemon Squeezy— para tener los precios en un
-// único sitio: si cambian los tramos, solo se toca la landing, sin release.
-export const PURCHASE_URL = "https://localwhisper.app/#license";
-
-/** Number of days before expiry where we start showing the countdown banner. */
-export const COUNTDOWN_THRESHOLD = 4;
+// Sección "Apoyar el proyecto" de la landing. Local Whisper es gratis y sin
+// funciones bloqueadas; esto es una aportación voluntaria (café o licencia de
+// apoyo). Apuntamos a la web —y no a un checkout fijo de Lemon Squeezy— para
+// tener los importes en un único sitio: si cambian, solo se toca la landing,
+// sin necesidad de publicar una versión nueva de la app.
+export const SUPPORT_URL = "https://localwhisper.app/#apoyar";
 
 /** Re-validate against Lemon Squeezy at most once every N days when active. */
 export const REVALIDATE_EVERY_DAYS = 7;
@@ -56,38 +57,15 @@ export function deactivateLicense(): Promise<LicenseState> {
 // Derived helpers (pure)
 // ---------------------------------------------------------------------------
 
-/** Whole days left in the trial. Negative once expired. */
-export function trialDaysLeft(state: LicenseState): number {
-  const start = new Date(state.first_launch).getTime();
-  const elapsedDays = (Date.now() - start) / 86_400_000;
-  return Math.ceil(TRIAL_DAYS - elapsedDays);
-}
-
 /**
- * True when the user has access to premium features (Estadísticas + the
- * arena/bosque themes). Recording itself is ALWAYS free and never gated — the
- * license only unlocks the premium extras. During the 14-day trial everyone
- * gets premium; after that it requires an active key.
+ * True when the user has activated a support key.
+ *
+ * Local Whisper es gratis y no tiene NINGUNA función bloqueada: no existe un
+ * `hasPremium`. Esto solo sirve para darle las gracias a quien ha apoyado el
+ * proyecto (insignia en Ajustes) y para dejar de mostrarle el aviso de apoyo.
  */
-export function hasPremium(state: LicenseState): boolean {
-  if (state.status === "active") return true;
-  if (state.status === "trial") return trialDaysLeft(state) > 0;
-  return false;
-}
-
-/** True if we should nudge the user with a countdown banner during the
- *  *trial* (last few days only). */
-export function shouldShowCountdown(state: LicenseState): boolean {
-  if (state.status !== "trial") return false;
-  const left = trialDaysLeft(state);
-  return left > 0 && left <= COUNTDOWN_THRESHOLD;
-}
-
-/** True if a persistent banner should appear above the main content. Shown
- *  throughout the entire trial (from day 1) and during expired/invalid
- *  states. Hidden only when the license is active. */
-export function shouldShowLicenseBanner(state: LicenseState): boolean {
-  return state.status !== "active";
+export function isSupporter(state: LicenseState): boolean {
+  return state.status === "active";
 }
 
 /** Whether enough time has passed to silently re-check the key online. */

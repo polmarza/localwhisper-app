@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 
-// Free-tier weekly transcription cap. Trial and licensed (premium) users are
-// unlimited and never hit this. The counter itself lives in Rust
-// (AppData/usage.json) so clearing the WebKit cache can't reset it.
-export const WEEKLY_WORD_CAP = 2000;
+// Contador de palabras dictadas. Ya NO hay tope: Local Whisper es gratis y la
+// transcripción es ilimitada. Mantenemos la cuenta porque alimenta la pantalla
+// de Estadísticas y el aviso de apoyo (que solo aparece cuando alguien ya le ha
+// sacado partido a la app). Vive en Rust (AppData/usage.json) para que limpiar
+// la caché del WebView no lo resetee.
 
 export type UsageState = {
   week_start: string;
@@ -18,12 +19,7 @@ export function addUsageWords(words: number): Promise<UsageState> {
   return invoke<UsageState>("usage_add_words", { words });
 }
 
-/** Words the free tier still has this week. Never negative. */
-export function wordsRemaining(state: UsageState): number {
-  return Math.max(0, WEEKLY_WORD_CAP - state.words_used);
-}
-
-/** Word count of a transcription, matching how the quota is measured. */
+/** Word count of a transcription. */
 export function countWords(text: string): number {
   const trimmed = text.trim();
   if (!trimmed) return 0;
