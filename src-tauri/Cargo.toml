@@ -2,8 +2,10 @@
 name = "local-whisper"
 version = "0.2.1"
 description = "Local Whisper — voz a texto privado en tu Mac, con Whisper local."
-authors = ["Pol"]
+authors = ["Pol Marza"]
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/polmarza/localwhisper-app"
 
 [lib]
 name = "local_whisper_lib"
