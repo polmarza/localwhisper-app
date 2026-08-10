@@ -4,143 +4,150 @@
 
 # Local Whisper
 
-**Dictado por voz que nunca sale de tu ordenador.**
+**Voice dictation that never leaves your computer.**
 
-Pulsas un atajo, hablas, y el texto aparece donde estés escribiendo.
-Sin nube, sin cuenta, sin suscripción. Funciona hasta en modo avión.
+Hit a shortcut, talk, and the text lands wherever you're typing.
+No cloud, no account, no subscription. It even works in airplane mode.
 
-[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
-[![Plataformas](https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-lightgrey.svg)]()
-[![Gratis](https://img.shields.io/badge/precio-gratis-brightgreen.svg)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-lightgrey.svg)]()
+[![Free](https://img.shields.io/badge/price-free-brightgreen.svg)]()
 
-[Descargar](https://localwhisper.app) · [Web](https://localwhisper.app) · [Invítame a un café](https://www.buymeacoffee.com/polmarza)
+[Download](https://localwhisper.app) · [Website](https://localwhisper.app) · [Buy me a coffee](https://www.buymeacoffee.com/polmarza)
 
-<!-- TODO: captura de pantalla.
-     Haz una de la ventana real en tu Mac (⇧⌘4 y luego Espacio para capturar
-     la ventana con su sombra), guárdala como docs/screenshot.png y descomenta:
-<img src="docs/screenshot.png" width="820" alt="Local Whisper en funcionamiento" />
+**English** · [Español](README.es.md)
+
+<!-- TODO: screenshot.
+     Take one of the real window on macOS (⇧⌘4, then Space to capture the
+     window with its shadow), save it as docs/screenshot.png and uncomment:
+<img src="docs/screenshot.png" width="820" alt="Local Whisper in action" />
 -->
 
 </div>
 
+> [!NOTE]
+> **The app's interface is currently in Spanish only.** Transcription itself
+> works in every language Whisper supports (99+), and the codebase is English.
+> UI localisation is on the roadmap — [contributions welcome](#contributing).
+
 ---
 
-## Por qué existe
+## Why it exists
 
-Todas las apps de dictado decentes mandan tu voz a un servidor. Si dictas
-correos, notas de clientes o historiales de pacientes, eso significa que tu voz
-—y lo que dices— viaja a la nube de alguien.
+Every decent dictation app sends your voice to a server. If you dictate emails,
+client notes or patient records, that means your voice — and what you say —
+travels to somebody else's cloud.
 
-Local Whisper ejecuta **Whisper entero en tu máquina**. El audio no sale del
-equipo, no se guarda en crudo, y no hay servidor al que enviar nada. Por eso
-funciona sin conexión: no es una promesa de política de privacidad, es cómo
-está construido.
+Local Whisper runs **Whisper entirely on your machine**. Audio never leaves the
+device, is never stored raw, and there is no server to send it to. That's why it
+works offline: it isn't a privacy-policy promise, it's how the thing is built.
 
-## Es gratis, y esto es por qué
+## It's free, and here's why
 
-**Sin límite de palabras, sin funciones bloqueadas, sin prueba que caduque.**
-Todas las pantallas y los 7 temas están disponibles para todo el mundo.
+**No word limits, no locked features, no expiring trial.** Every screen and all
+7 themes are available to everyone.
 
-La desarrollo yo solo. Disfruto construyendo; vender no. Un producto de pago
-necesita a alguien detrás vendiéndolo cada día, y prefiero dedicar ese tiempo a
-que la app sea mejor. Además, al procesarse todo en local **no hay nada que
-vender**: ni datos, ni servidores.
+I build this on my own. I enjoy building; selling, not so much. A paid product
+needs somebody behind it selling every single day, and I'd rather spend that
+time making the app better. Besides, since everything runs locally there's
+**nothing to sell** — no data, no servers.
 
-Si te ahorra tiempo y te apetece echar una mano, hay un
-[café](https://www.buymeacoffee.com/polmarza) esperando. Totalmente opcional.
+If it saves you time and you feel like helping out, there's a
+[coffee](https://www.buymeacoffee.com/polmarza) waiting. Entirely optional.
 
-## Qué hace
+## What it does
 
-- **Dicta en cualquier app** — el texto se pega donde tengas el cursor: correo, notas, editor, terminal.
-- **Diccionario propio** — enséñale nombres, marcas y tecnicismos para que los escriba bien siempre.
-- **Historial local** — todas tus transcripciones en una base SQLite en tu equipo. Se puede desactivar o borrar.
-- **Estadísticas** — palabras dictadas, rachas y tiempo ahorrado.
-- **7 temas** × modo claro/oscuro, tamaño de texto ajustable y elección de tipografía.
-- **Auto-actualización** firmada, con canal estable y canal preview.
+- **Dictate into any app** — text is pasted at your cursor: mail, notes, editor, terminal.
+- **Custom dictionary** — teach it names, brands and jargon so it always spells them right.
+- **Local history** — every transcription in a SQLite database on your machine. Can be disabled or wiped.
+- **Stats** — words dictated, streaks and time saved.
+- **7 themes** × light/dark, adjustable text size and a choice of typeface.
+- **Signed auto-updates**, with stable and preview channels.
 
-## Instalación
+## Install
 
-Descarga el instalador desde [localwhisper.app](https://localwhisper.app) o
-desde [Releases](../../releases).
+Grab an installer from [localwhisper.app](https://localwhisper.app) or from
+[Releases](../../releases).
 
-| Sistema | Formato | Notas |
+| OS | Format | Notes |
 |---|---|---|
-| macOS (Apple Silicon) | `.dmg` | Firmado y notarizado por Apple |
-| macOS (Intel) | `.dmg` | Firmado y notarizado por Apple |
-| Windows | `.exe` / `.msi` | Transcribe en CPU (más lento) |
-| Linux | `.AppImage` / `.deb` / `.rpm` | Transcribe en CPU (más lento) |
+| macOS (Apple Silicon) | `.dmg` | Signed and notarised by Apple |
+| macOS (Intel) | `.dmg` | Signed and notarised by Apple |
+| Windows | `.exe` / `.msi` | Runs on CPU (slower) |
+| Linux | `.AppImage` / `.deb` / `.rpm` | Runs on CPU (slower) |
 
-La primera vez, la app descarga el modelo que elijas (una sola vez). A partir
-de ahí funciona sin internet.
+On first run the app downloads the model you pick — once. After that it works
+with no internet at all.
 
-## Modelos
+## Models
 
-| Tier | Modelo | Tamaño | Recomendado para |
+| Tier | Model | Size | Best for |
 |---|---|---|---|
-| Ligero | `small` (q5_1) | ~181 MB | Cualquier equipo · el default en Windows/Linux |
-| Equilibrado | `large-v3-turbo` (q5_0) | ~548 MB | **Default en Mac.** 8 GB de RAM o más |
-| Máximo | `large-v3-turbo` (q8_0) | ~834 MB | Apple Silicon con 16 GB o más |
+| Light | `small` (q5_1) | ~181 MB | Any machine · the default on Windows/Linux |
+| Balanced | `large-v3-turbo` (q5_0) | ~548 MB | **Default on Mac.** 8 GB RAM or more |
+| Maximum | `large-v3-turbo` (q8_0) | ~834 MB | Apple Silicon with 16 GB or more |
 
-En **Apple Silicon** la inferencia va por **GPU (Metal)**, así que es rápida
-incluso con los modelos grandes. En Windows y Linux todavía va por CPU — de ahí
-que ahí se recomiende el modelo Ligero. *(CUDA/Vulkan: en el roadmap.)*
+On **Apple Silicon** inference runs on the **GPU via Metal**, so it's fast even
+with the larger models. On Windows and Linux it still runs on CPU — hence the
+Light model being the recommendation there. *(CUDA/Vulkan: on the roadmap.)*
 
-## Atajo
+## Shortcut
 
-| Sistema | Atajo por defecto |
+| OS | Default |
 |---|---|
-| macOS | `⌥` + `Espacio` |
-| Windows / Linux | `Ctrl` + `Shift` + `Espacio` |
+| macOS | `⌥` + `Space` |
+| Windows / Linux | `Ctrl` + `Shift` + `Space` |
 
-Configurable desde **Ajustes → Atajos**.
+Configurable under **Ajustes → Atajos** (Settings → Shortcuts).
 
-## Cómo está hecho
+## How it's built
 
 - **[Tauri v2](https://tauri.app)** + **React 19** + TypeScript (Vite)
-- **[whisper.cpp](https://github.com/ggerganov/whisper.cpp)** vía
-  [whisper-rs](https://github.com/tazz4843/whisper-rs), con feature `metal` en macOS
-- **SQLite** (`tauri-plugin-sql`) para el historial y el diccionario
-- El contexto de Whisper se **cachea en memoria**: el modelo se carga de disco
-  una vez por sesión, no en cada dictado
-- Se añaden 500 ms de silencio al inicio y al final del audio — sin eso, Whisper
-  se come la primera y la última palabra
+- **[whisper.cpp](https://github.com/ggerganov/whisper.cpp)** through
+  [whisper-rs](https://github.com/tazz4843/whisper-rs), with the `metal` feature on macOS
+- **SQLite** (`tauri-plugin-sql`) for history and the dictionary
+- The Whisper context is **cached in memory**: the model is read from disk once
+  per session, not on every dictation
+- 500 ms of silence is padded at the start *and* end of the audio — without it,
+  Whisper swallows your first and last word
 
-## Compilar desde el código
+## Build from source
 
-Requisitos: [Node](https://nodejs.org) 20+, [pnpm](https://pnpm.io) 9+ y
-[Rust](https://rustup.rs) estable. En Linux hacen falta además las dependencias
-de sistema de Tauri (`libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `patchelf`,
-`libssl-dev`).
+Requirements: [Node](https://nodejs.org) 20+, [pnpm](https://pnpm.io) 9+ and
+stable [Rust](https://rustup.rs). On Linux you'll also need Tauri's system
+dependencies (`libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `patchelf`, `libssl-dev`).
 
 ```bash
 pnpm install
-pnpm tauri dev      # desarrollo
-pnpm tauri build    # binario de producción
+pnpm tauri dev      # development
+pnpm tauri build    # production binary
 ```
 
-## Contribuir
+## Contributing
 
-Es un proyecto personal que mantengo en mis ratos libres, así que el soporte es
-en modo "lo mejor que puedo". Los issues y PRs son bienvenidos, pero puedo tardar
-en responder.
+This is a personal project I maintain in my spare time, so support is
+best-effort. Issues and PRs are welcome, but I may be slow to reply.
 
-- 🐛 [Reportar un fallo](https://tally.so/r/9qovLV)
-- 💡 [Proponer una mejora](https://tally.so/r/A7jqK0)
-- ✉️ hola@localwhisper.app
+**UI localisation is the most useful thing anyone could contribute** — the
+strings are currently hardcoded in Spanish across `src/`.
 
-## Licencia
+- 🐛 [Report a bug](https://tally.so/r/9qovLV) *(form in Spanish)*
+- 💡 [Suggest a feature](https://tally.so/r/A7jqK0) *(form in Spanish)*
+- ✉️ hola@localwhisper.app — English is fine
+
+## License
 
 [MIT](LICENSE) © 2026 Pol Marza.
 
-La licencia cubre el código. No incluye el nombre "Local Whisper", el logotipo
-ni el dominio — si publicas un fork, usa identidad propia. Las licencias de las
-dependencias (whisper.cpp, los modelos de OpenAI, Tauri, las tipografías…) están
-en [THIRD-PARTY.md](THIRD-PARTY.md).
+The license covers the code. It does not include the "Local Whisper" name, the
+logo or the domain — if you ship a fork, please give it its own identity.
+Dependency licenses (whisper.cpp, OpenAI's models, Tauri, the typefaces…) are
+listed in [THIRD-PARTY.md](THIRD-PARTY.md).
 
 <div align="center">
 
 <a href="https://www.buymeacoffee.com/polmarza">
-  <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=polmarza&button_colour=c0651e&font_colour=ffffff&font_family=Poppins&outline_colour=ffffff&coffee_colour=FFDD00" alt="Invítame a un café" height="50" />
+  <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=polmarza&button_colour=c0651e&font_colour=ffffff&font_family=Poppins&outline_colour=ffffff&coffee_colour=FFDD00" alt="Buy me a coffee" height="50" />
 </a>
 
 </div>
