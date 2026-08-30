@@ -7,9 +7,7 @@ import { ChooseTheme } from "./ChooseTheme";
 import { InstallProgress } from "./InstallProgress";
 import { HowToDictate } from "./HowToDictate";
 import { StatsTeaser } from "./StatsTeaser";
-import { ActivateLicense } from "./ActivateLicense";
 import { Ready } from "./Ready";
-import { activateLicense } from "../state/license";
 import { detectHardware, type Hardware } from "../state/hardware";
 import {
   findTier,
@@ -42,7 +40,6 @@ type Step =
   | "install"
   | "dictate"
   | "stats"
-  | "license"
   | "ready";
 
 type Props = {
@@ -125,11 +122,10 @@ export function OnboardingFlow({ onComplete }: Props) {
     install: 5,
     dictate: 6,
     stats: 7,
-    license: 8,
-    ready: 9,
+    ready: 8,
   };
   const currentIdx = stepIndex[step];
-  const stepCount = 10;
+  const stepCount = 9;
 
   return (
     <div className="onb-shell">
@@ -187,19 +183,7 @@ export function OnboardingFlow({ onComplete }: Props) {
         )}
 
         {step === "stats" && (
-          <StatsTeaser onContinue={() => setStep("license")} />
-        )}
-
-        {step === "license" && (
-          <ActivateLicense
-            onActivate={async (key) => {
-              // activateLicense throws if the key is invalid or LS is down —
-              // ActivateLicense catches that and shows the error in the UI.
-              await activateLicense(key);
-              setStep("ready");
-            }}
-            onSkip={() => setStep("ready")}
-          />
+          <StatsTeaser onContinue={() => setStep("ready")} />
         )}
 
         {step === "ready" && <Ready onFinish={finishOnboarding} />}

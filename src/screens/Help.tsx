@@ -306,7 +306,7 @@ function Privacy() {
     },
     {
       title: "Sin cuenta",
-      desc: "No tienes que crear un usuario. Compras la licencia, recibes una clave, la pegas en la app. Listo.",
+      desc: "No hay registro, ni clave de licencia, ni activación. Instalas la app, la abres y ya estás dictando.",
     },
     {
       title: "Audio efímero",
@@ -385,7 +385,7 @@ function Privacy() {
 const FAQ_ITEMS: Array<{ q: string; a: ReactNode }> = [
   {
     q: "¿De verdad no envía nada a internet?",
-    a: "La única vez que la app contacta con un servidor es al descargar el modelo la primera vez y para validar tu licencia cada 7 días. La transcripción en sí es 100% local, ejecutada en tu ordenador.",
+    a: "La única vez que la app contacta con un servidor es al descargar el modelo la primera vez y al comprobar si hay actualizaciones. No hay validación de licencia ni telemetría. La transcripción es 100% local, ejecutada en tu ordenador.",
   },
   {
     q: "¿Qué precisión tiene comparado con los servicios online?",
@@ -405,7 +405,7 @@ const FAQ_ITEMS: Array<{ q: string; a: ReactNode }> = [
   },
   {
     q: "¿Qué pasa si cambio de ordenador?",
-    a: "Desactiva la licencia desde Ajustes → Licencia en el equipo antiguo (libera una activación) y actívala en el nuevo. Tienes 3 activaciones simultáneas, así que también puedes mantener varias a la vez.",
+    a: "Nada: descarga la app en el equipo nuevo y listo. No hay activaciones que liberar ni límite de equipos — Local Whisper es software libre y puedes instalarlo en todos los ordenadores que quieras.",
   },
   {
     q: "¿Dónde se guarda mi historial?",

@@ -12,7 +12,7 @@ import {
   IconLock,
   IconShield,
 } from "../components/Icons";
-import { Btn, Card, NavItem, Pill, ProTag, Waveform, inputStyle } from "../components/Ui";
+import { Btn, Card, NavItem, Pill, Waveform, inputStyle } from "../components/Ui";
 import { ShortcutSelect, useShortcutConfig } from "../components/ShortcutSelect";
 import {
   getUpdateChannel,
@@ -38,21 +38,15 @@ import {
   TEXT_SCALES,
   type TranscriptFont,
 } from "../state/preferences";
-import {
-  THEMES,
-  isPremiumTheme,
-  type ThemeId,
-  type ThemeMode,
-} from "../state/theme";
+import { THEMES, type ThemeId, type ThemeMode } from "../state/theme";
 import { TIERS, findTier, tierForFile } from "../state/tiers";
-import {
-  PURCHASE_URL,
-  hasPremium,
-  maskKey,
-  trialDaysLeft,
-  type LicenseState,
-} from "../state/license";
 import { openUrl } from "../lib/tauri";
+
+// Enlaces del proyecto (sección "Proyecto"). Local Whisper es software libre:
+// ya no hay claves de licencia ni checkout que abrir desde aquí.
+const REPO_URL = "https://github.com/polmarza/localwhisper-app";
+const ISSUES_URL = `${REPO_URL}/issues`;
+const SPONSORS_URL = "https://github.com/sponsors/polmarza";
 
 import { LANGUAGES } from "../state/languages";
 
@@ -63,7 +57,7 @@ const SETTINGS_SECTIONS: Array<{ id: SettingsSection; label: string; icon: React
   { id: "model", label: "Modelo local", icon: <IconShield size={15} /> },
   { id: "languages", label: "Idiomas", icon: <IconGlobe size={15} /> },
   { id: "shortcuts", label: "Atajos", icon: <IconKey size={15} /> },
-  { id: "license", label: "Licencia", icon: <IconShield size={15} /> },
+  { id: "proyecto", label: "Proyecto", icon: <IconShield size={15} /> },
   { id: "privacy", label: "Privacidad", icon: <IconLock size={15} /> },
 ];
 
@@ -74,7 +68,7 @@ export type SettingsSection =
   | "model"
   | "languages"
   | "shortcuts"
-  | "license"
+  | "proyecto"
   | "privacy";
 
 function Toggle({
@@ -303,13 +297,10 @@ export function SettingsScreen({
   textScale = 1.0,
   onTextScaleChange,
   initialSection = "general",
-  licenseState,
   updateState,
   onCheckUpdate,
   onInstallUpdate,
   onRestartApp,
-  onActivateLicense,
-  onDeactivateLicense,
 }: {
   activeModelFile?: string;
   onModelChange?: (file: string) => void;
@@ -325,19 +316,13 @@ export function SettingsScreen({
   textScale?: number;
   onTextScaleChange?: (n: number) => void;
   initialSection?: SettingsSection;
-  licenseState?: LicenseState | null;
   updateState?: UpdateState;
   onCheckUpdate?: () => void;
   onInstallUpdate?: () => void;
   onRestartApp?: () => void;
-  onActivateLicense?: () => void;
-  onDeactivateLicense?: () => Promise<void> | void;
 } = {}) {
   const activeTierId = activeModelFile ? tierForFile(activeModelFile) : null;
   const activeTier = activeTierId ? findTier(activeTierId) : null;
-  // Premium (trial or active key) unlocks the arena/bosque themes. Pizarra is
-  // always free. Non-premium clicks on a locked theme open the license modal.
-  const premium = licenseState ? hasPremium(licenseState) : false;
   const [section, setSection] = useState<SettingsSection>(initialSection);
   // Persisted prefs are read once on mount; the setters below update local
   // state (for the UI) and write to localStorage (for the recorder to read
@@ -577,7 +562,7 @@ export function SettingsScreen({
               </Row>
               <Row
                 label="Ver la introducción otra vez"
-                hint="Repite la bienvenida completa: nombre, atajo, diccionario, tema y modelo. No pierdes tu historial ni tu licencia."
+                hint="Repite la bienvenida completa: nombre, atajo, diccionario, tema y modelo. No pierdes tu historial."
               >
                 <Btn
                   variant="ghost"
@@ -773,14 +758,11 @@ export function SettingsScreen({
                   {THEMES.map((t) => {
                     const active = theme === t.id;
                     const bg = t.preview[mode].bg;
-                    const locked = isPremiumTheme(t.id) && !premium;
                     return (
                       <button
                         key={t.id}
-                        onClick={() =>
-                          locked ? onActivateLicense?.() : onThemeChange?.(t.id)
-                        }
-                        title={locked ? `${t.label} · función premium` : t.label}
+                        onClick={() => onThemeChange?.(t.id)}
+                        title={t.label}
                         style={{
                           display: "flex",
                           flexDirection: "column",
@@ -816,26 +798,6 @@ export function SettingsScreen({
                               boxShadow: "0 0 0 2px rgba(0,0,0,.04)",
                             }}
                           />
-                          {isPremiumTheme(t.id) && (
-                            <ProTag
-                              style={{ position: "absolute", top: 6, left: 6 }}
-                            />
-                          )}
-                          {locked && (
-                            <span
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                background: "rgba(0,0,0,.28)",
-                                color: "#fff",
-                              }}
-                            >
-                              <IconLock size={15} />
-                            </span>
-                          )}
                         </div>
                         <div
                           style={{
@@ -1180,116 +1142,51 @@ export function SettingsScreen({
             </Card>
           )}
 
-          {section === "license" && (
+          {section === "proyecto" && (
             <Card padding={0}>
-              <SectionHead title="Licencia" />
-              {!licenseState ? (
-                <Row label="Estado" hint="Cargando información de licencia…">
-                  <Pill>—</Pill>
-                </Row>
-              ) : licenseState.status === "active" ? (
-                <>
-                  <Row
-                    label="Estado"
-                    hint="Tu licencia está activa en este equipo."
-                  >
-                    <Pill tone="good">Activa</Pill>
-                  </Row>
-                  <Row label="Clave" hint="Por seguridad solo mostramos parte.">
-                    <span
-                      className="mono"
-                      style={{ fontSize: 13, color: "var(--ink-2)" }}
-                    >
-                      {licenseState.key ? maskKey(licenseState.key) : "—"}
-                    </span>
-                  </Row>
-                  {licenseState.activation_limit != null && (
-                    <Row
-                      label="Equipos activados"
-                      hint="Puedes liberar este equipo si quieres usar la licencia en otro."
-                    >
-                      <span style={{ fontSize: 13, color: "var(--ink-2)" }}>
-                        {licenseState.activation_usage ?? "?"} /{" "}
-                        {licenseState.activation_limit}
-                      </span>
-                    </Row>
-                  )}
-                  <Row
-                    label="Desactivar este equipo"
-                    hint="Libera una activación para usarla en otro Mac."
-                  >
-                    <button
-                      onClick={() => void onDeactivateLicense?.()}
-                      style={{
-                        height: 32,
-                        padding: "0 14px",
-                        borderRadius: 7,
-                        border:
-                          "1px solid color-mix(in oklch, var(--danger) 35%, transparent)",
-                        background: "transparent",
-                        color: "var(--danger)",
-                        fontSize: 12.5,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Desactivar
-                    </button>
-                  </Row>
-                </>
-              ) : (
-                <>
-                  <Row
-                    label="Estado"
-                    hint={
-                      licenseState.status === "trial"
-                        ? `Estás en el periodo de prueba. Te quedan ${Math.max(
-                            0,
-                            trialDaysLeft(licenseState),
-                          )} días.`
-                        : licenseState.status === "invalid"
-                          ? "Tu clave ya no es válida. Introduce otra o adquiere una nueva."
-                          : "El periodo de prueba ha terminado."
-                    }
-                  >
-                    <Pill
-                      tone={
-                        licenseState.status === "trial" ? "accent" : "danger"
-                      }
-                    >
-                      {licenseState.status === "trial"
-                        ? "Prueba"
-                        : licenseState.status === "invalid"
-                          ? "Inválida"
-                          : "Expirada"}
-                    </Pill>
-                  </Row>
-                  <Row
-                    label="Activar licencia"
-                    hint="Si ya compraste, introduce aquí la clave que recibiste por email."
-                  >
-                    <Btn
-                      variant="primary"
-                      size="sm"
-                      onClick={() => onActivateLicense?.()}
-                    >
-                      Introducir clave
-                    </Btn>
-                  </Row>
-                  <Row
-                    label="Comprar licencia"
-                    hint="Pago único desde 29 €. Elige 1, 2 o 3 equipos en la web."
-                  >
-                    <Btn
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void openUrl(PURCHASE_URL)}
-                    >
-                      Comprar
-                    </Btn>
-                  </Row>
-                </>
-              )}
+              <SectionHead title="Proyecto" />
+              <Row
+                label="Licencia"
+                hint="Local Whisper es software libre. Puedes usarlo, estudiarlo, modificarlo y compartirlo sin pagar nada."
+              >
+                <Pill tone="accent">GPL-3.0</Pill>
+              </Row>
+              <Row
+                label="Código fuente"
+                hint="Todo el código está publicado en GitHub: la app, el motor de transcripción y el proceso de release."
+              >
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void openUrl(REPO_URL)}
+                >
+                  Ver repositorio
+                </Btn>
+              </Row>
+              <Row
+                label="Reportar un problema"
+                hint="¿Un bug o una idea? Ábrelo como issue y le echamos un ojo."
+              >
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void openUrl(ISSUES_URL)}
+                >
+                  Abrir issue
+                </Btn>
+              </Row>
+              <Row
+                label="Apoyar el proyecto"
+                hint="La app es gratis y lo seguirá siendo. Si te ahorra tiempo, puedes echar una mano con el desarrollo. Totalmente opcional."
+              >
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  onClick={() => void openUrl(SPONSORS_URL)}
+                >
+                  Invitar a un café
+                </Btn>
+              </Row>
             </Card>
           )}
 

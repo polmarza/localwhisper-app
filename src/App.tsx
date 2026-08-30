@@ -5,10 +5,8 @@ import { LogicalPosition } from "@tauri-apps/api/window";
 import { MacWindowFrame } from "./components/MacWindow";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
-import { LicenseBanner } from "./components/LicenseBanner";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { useUpdater } from "./hooks/useUpdater";
-import { LicenseModal } from "./components/LicenseModal";
 import { TutorialModal } from "./components/TutorialModal";
 import { HomeScreen } from "./screens/Home";
 import { InsightsScreen } from "./screens/Insights";
@@ -49,19 +47,12 @@ import {
   applyTheme,
   getMode,
   getTheme,
-  isPremiumTheme,
   setMode,
   setTheme,
-  FREE_THEME,
   type ThemeId,
   type ThemeMode,
 } from "./state/theme";
 import { findTier, tierForFile } from "./state/tiers";
-import { hasPremium, shouldShowLicenseBanner } from "./state/license";
-import { countWords, wordsRemaining } from "./state/usage";
-import { PremiumLocked } from "./components/PremiumLocked";
-import { useLicense } from "./hooks/useLicense";
-import { useUsage } from "./hooks/useUsage";
 import { useDictionary } from "./hooks/useDictionary";
 import { applyDictionary } from "./lib/dictionary";
 import type { SettingsSection } from "./screens/Settings";
@@ -260,13 +251,10 @@ function Dashboard({
     setMicDeviceIdState(id);
   }, []);
 
-  // onResult and guardedToggle are created before license + usage are known.
+  // onResult and the shortcut toggle are created before the dictionary loads.
   // These refs let them read the latest values at call time without being
   // recreated (which would leak stale global-shortcut listeners).
-  const premiumRef = useRef(false);
-  const addWordsRef = useRef<(n: number) => void>(() => {});
   const statusRef = useRef<string>("idle");
-  const overQuotaRef = useRef(false);
   const dictionaryRef = useRef<DictionaryEntry[]>([]);
 
   const onResult = useCallback((r: RecorderResult) => {
@@ -287,12 +275,6 @@ function Dashboard({
       return;
     }
 
-    // Count words against the free-tier weekly quota. Premium (trial/licensed)
-    // is unlimited and never counted.
-    if (!premiumRef.current) {
-      const words = countWords(text);
-      if (words > 0) void addWordsRef.current(words);
-    }
 
     // Both side-effects are gated by preferences read at the moment of the
     // result — toggling them in Settings takes effect on the next dictation
@@ -339,50 +321,20 @@ function Dashboard({
     }
   };
 
-  // License model: recording is ALWAYS free and never gated. The license only
-  // unlocks premium extras — the Estadísticas screen, the arena/bosque themes,
-  // and live (VAD) transcription. Everyone gets premium during the 14-day
-  // trial; after that it needs an active key. A persistent banner keeps the
-  // trial/upsell visible.
-  const license = useLicense();
-  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
-  // Until the license state has loaded we treat the user as non-premium so we
-  // never briefly flash premium-only surfaces to a lapsed user.
-  const premium = license.state ? hasPremium(license.state) : false;
-
-  // Free-tier weekly word quota. Premium (trial/licensed) is unlimited; a free
-  // user who's used up the week's words is blocked from starting a new
-  // dictation until it resets or they buy a license.
-  const usage = useUsage();
   const dictionary = useDictionary();
   const updater = useUpdater();
-  const overQuota = !premium && !!usage.state && wordsRemaining(usage.state) <= 0;
 
-  premiumRef.current = premium;
-  addWordsRef.current = usage.addWords;
-  overQuotaRef.current = overQuota;
   dictionaryRef.current = dictionary.entries;
 
   const { status, elapsedSec, toggle } = useRecorder({
     modelFile,
     language,
     deviceId: micDeviceId,
-    // Live (VAD) transcription is a premium extra — a lapsed user falls back to
-    // the classic transcribe-on-stop path even if the pref is still on.
-    streamingAllowed: premium,
     onResult,
     onError: setLastError,
   });
   statusRef.current = status;
 
-  // If premium lapses while a premium theme is selected, fall the user back to
-  // the free theme. Gated on `license.state` being loaded so we never clobber a
-  // paying user's saved theme during the initial async load.
-  useEffect(() => {
-    if (license.state && !hasPremium(license.state) && isPremiumTheme(theme)) {
-      onThemeChange(FREE_THEME);
-    }
-  }, [license.state, theme, onThemeChange]);
 
   // In-app interactive tutorial. Shown automatically the first time the
   // Dashboard mounts (right after onboarding completes). The "intercept" ref
@@ -411,24 +363,13 @@ function Dashboard({
     return () => window.removeEventListener("replay-tutorial", handler);
   }, []);
 
-  // Starting a dictation is blocked only when a free user has exhausted their
-  // weekly word quota — then we surface the upsell modal. Stopping an in-flight
-  // recording is always allowed.
-  const guardedToggle = useCallback(() => {
-    if (statusRef.current !== "recording" && overQuotaRef.current) {
-      setLicenseModalOpen(true);
-      return;
-    }
-    toggle();
-  }, [toggle]);
-
   // Global shortcut (⌥ Space) fires a "toggle-recording" event from Rust. We
   // pin the latest `toggle` in a ref so the listener (subscribed exactly once
   // on mount) always calls the current closure — otherwise React would
   // re-subscribe on every status change and leak stale listeners that fire
   // start() and stop() concurrently.
-  const toggleRef = useRef(guardedToggle);
-  toggleRef.current = guardedToggle;
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
   useEffect(() => {
     const promise = listen<void>("toggle-recording", () => toggleRef.current());
     return () => {
@@ -484,8 +425,6 @@ function Dashboard({
             onNavigate={onNavigate}
             width={sidebarWidth}
             onWidthChange={onSidebarWidthChange}
-            insightsLocked={!premium}
-            onLockedInsights={() => setLicenseModalOpen(true)}
           />
         )}
         <div
@@ -509,19 +448,8 @@ function Dashboard({
             transcribing={status === "transcribing"}
             recordingDuration={formatDuration(elapsedSec)}
             status={topStatus}
-            onToggleRecord={guardedToggle}
+            onToggleRecord={toggle}
           />
-          {license.state && shouldShowLicenseBanner(license.state) && (
-            <LicenseBanner
-              state={license.state}
-              remaining={
-                !premium && usage.state
-                  ? wordsRemaining(usage.state)
-                  : undefined
-              }
-              onActivate={() => setLicenseModalOpen(true)}
-            />
-          )}
           <div className="scroll" style={{ flex: 1, overflowY: "auto" }}>
             {screen === "home" && (
               <HomeScreen
@@ -532,16 +460,9 @@ function Dashboard({
                 onAddToDictionary={dictionary.add}
               />
             )}
-            {screen === "insights" &&
-              (premium ? (
-                <InsightsScreen refreshKey={historyVersion} />
-              ) : (
-                <PremiumLocked
-                  title="Estadísticas es una función premium"
-                  blurb="Consulta tus palabras dictadas, rachas y tiempo ahorrado con una licencia de Local Whisper. La transcripción sigue siendo gratis e ilimitada."
-                  onActivate={() => setLicenseModalOpen(true)}
-                />
-              ))}
+            {screen === "insights" && (
+              <InsightsScreen refreshKey={historyVersion} />
+            )}
             {screen === "dictionary" && (
               <DictionaryScreen
                 entries={dictionary.entries}
@@ -567,35 +488,15 @@ function Dashboard({
                 textScale={textScale}
                 onTextScaleChange={onTextScaleChange}
                 initialSection={pendingSettingsSection}
-                licenseState={license.state}
                 updateState={updater.state}
                 onCheckUpdate={() => void updater.check(false)}
                 onInstallUpdate={updater.install}
                 onRestartApp={updater.restart}
-                onActivateLicense={() => setLicenseModalOpen(true)}
-                onDeactivateLicense={async () => {
-                  try {
-                    await license.deactivate();
-                  } catch (err) {
-                    console.error("license deactivate failed", err);
-                  }
-                }}
               />
             )}
           </div>
         </div>
       </div>
-      {license.state && licenseModalOpen && (
-        <LicenseModal
-          state={license.state}
-          onActivate={async (key) => {
-            await license.activate(key);
-            setLicenseModalOpen(false);
-          }}
-          onClose={() => setLicenseModalOpen(false)}
-        />
-      )}
-
       {tutorialOpen && (
         <TutorialModal
           capturedText={tutorialCaptured}

@@ -41,10 +41,6 @@ export function useRecorder(opts: {
   language?: string;
   // MediaDeviceInfo.deviceId, or null/undefined to use the system default.
   deviceId?: string | null;
-  // Whether live (VAD) transcription is allowed — it's a premium feature, so a
-  // lapsed user falls back to the classic transcribe-on-stop path even if the
-  // pref is still on. Defaults to true.
-  streamingAllowed?: boolean;
   onResult: (r: RecorderResult) => void;
   onError?: (err: string) => void;
 }) {
@@ -52,7 +48,6 @@ export function useRecorder(opts: {
     modelFile,
     language = "auto",
     deviceId = null,
-    streamingAllowed = true,
     onResult,
     onError,
   } = opts;
@@ -81,8 +76,6 @@ export function useRecorder(opts: {
   modelFileRef.current = modelFile;
   const languageRef = useRef(language);
   languageRef.current = language;
-  const streamingAllowedRef = useRef(streamingAllowed);
-  streamingAllowedRef.current = streamingAllowed;
 
   // --- VAD streaming state (only used when the pref is on) -----------------
   const streamingRef = useRef(false);
@@ -207,8 +200,7 @@ export function useRecorder(opts: {
     processorRef.current = processor;
     chunksRef.current = [];
 
-    const streaming =
-      VAD_STREAMING_ENABLED && getVadStreaming() && streamingAllowedRef.current;
+    const streaming = VAD_STREAMING_ENABLED && getVadStreaming();
     streamingRef.current = streaming;
 
     if (streaming) {
