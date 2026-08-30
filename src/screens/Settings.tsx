@@ -41,6 +41,7 @@ import {
 import { THEMES, type ThemeId, type ThemeMode } from "../state/theme";
 import { TIERS, findTier, tierForFile } from "../state/tiers";
 import { openUrl } from "../lib/tauri";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 // Enlaces del proyecto (sección "Proyecto"). Local Whisper es software libre:
 // ya no hay claves de licencia ni checkout que abrir desde aquí.
@@ -413,13 +414,27 @@ export function SettingsScreen({
     });
   };
 
+  // window.confirm no muestra nada en el webview de macOS y devuelve false,
+  // así que antes el borrado no llegaba a ejecutarse nunca. Ahora la
+  // confirmación es un componente propio y el resultado se dice en pantalla,
+  // en vez de quedarse en un console.error que el usuario no ve.
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearResult, setClearResult] = useState<"ok" | "error" | null>(null);
+
   const handleClearHistory = async () => {
     if (!onClearHistory) return;
-    const ok = window.confirm(
-      "¿Borrar todo el historial de transcripciones? Esta acción no se puede deshacer.",
-    );
-    if (!ok) return;
-    await onClearHistory();
+    setClearing(true);
+    try {
+      await onClearHistory();
+      setClearResult("ok");
+    } catch (err) {
+      console.error("clear history failed", err);
+      setClearResult("error");
+    } finally {
+      setClearing(false);
+      setConfirmClear(false);
+    }
   };
 
   // Audio input devices. Empty until the browser yields labels — those only
@@ -449,6 +464,7 @@ export function SettingsScreen({
   }, []);
 
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const handleExport = async () => {
     if (exporting) return;
     setExporting(true);
@@ -477,7 +493,7 @@ export function SettingsScreen({
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("export failed", err);
-      window.alert("No se pudo exportar. Mira la consola para más detalles.");
+      setExportError("No se pudo exportar el historial. Inténtalo de nuevo.");
     } finally {
       setExporting(false);
     }
@@ -1267,10 +1283,19 @@ export function SettingsScreen({
                 </Row>
                 <Row
                   label="Borrar todo el historial"
-                  hint="No se puede deshacer."
+                  hint={
+                    clearResult === "ok"
+                      ? "Historial borrado."
+                      : clearResult === "error"
+                        ? "No se pudo borrar. Inténtalo de nuevo."
+                        : "No se puede deshacer."
+                  }
                 >
                   <button
-                    onClick={handleClearHistory}
+                    onClick={() => {
+                      setClearResult(null);
+                      setConfirmClear(true);
+                    }}
                     style={{
                       height: 32,
                       padding: "0 14px",
@@ -1301,11 +1326,28 @@ export function SettingsScreen({
                     {exporting ? "Exportando…" : "Exportar"}
                   </Btn>
                 </Row>
+                {exportError && (
+                  <Row label="" hint={exportError}>
+                    <Pill tone="danger">Error</Pill>
+                  </Row>
+                )}
               </Card>
             </>
           )}
         </div>
       </div>
+
+      {confirmClear && (
+        <ConfirmDialog
+          title="¿Borrar todo el historial?"
+          body="Se eliminarán todas las transcripciones guardadas en este equipo. Esta acción no se puede deshacer."
+          confirmLabel="Borrar historial"
+          danger
+          busy={clearing}
+          onConfirm={handleClearHistory}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
     </div>
   );
 }

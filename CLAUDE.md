@@ -68,10 +68,24 @@ Corrige cómo se escriben nombres/marcas/expresiones en la transcripción.
 - ⚠️ Antes esto estaba a medias: la pantalla mostraba 12 entradas hardcodeadas y no se aplicaba nada. Ya no.
 
 ## Identificadores internos
-- Bundle ID: `com.localwhisper.app`
+- Bundle ID: `app.localwhisper` (definido en `src-tauri/tauri.conf.json`)
 - localStorage prefix: `localwhisper.*`
 - Base de datos SQLite: `localwhisper.db`
 - Nombre del crate Rust: `localwhisper`
+
+### Dónde vive el estado en disco (macOS)
+Son **dos sitios distintos**, y confundirlos hace perder tiempo:
+
+| Qué | Dónde |
+|---|---|
+| Historial (SQLite), modelos descargados | `~/Library/Application Support/app.localwhisper/` |
+| localStorage: onboarding, tema, atajo, prefs | `~/Library/WebKit/app.localwhisper/WebsiteData/…/LocalStorage/localstorage.sqlite3` |
+
+El flag `localwhisper.onboardingCompleted` está en **localStorage**, no en
+Application Support. Borrar sólo Application Support no repite el onboarding:
+elimina el historial y los modelos, pero la app sigue arrancando en el
+dashboard. Para repetirlo de verdad está `resetOnboarding()`, expuesto en
+Ajustes → General → "Ver la introducción otra vez".
 
 ## Licencia y modelo
 

@@ -312,13 +312,12 @@ function Dashboard({
     })();
   }, []);
 
+  // Deja propagar el error a propósito: quien llama (Ajustes → Privacidad)
+  // necesita saber si falló para decírselo al usuario. Tragárselo aquí hacía
+  // que un borrado fallido se viera exactamente igual que uno correcto.
   const onClearHistory = async () => {
-    try {
-      await clearTranscriptions();
-      setHistoryVersion((v) => v + 1);
-    } catch (err) {
-      console.error("clearTranscriptions failed", err);
-    }
+    await clearTranscriptions();
+    setHistoryVersion((v) => v + 1);
   };
 
   const dictionary = useDictionary();
